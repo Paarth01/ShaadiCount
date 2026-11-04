@@ -10,7 +10,7 @@ Mobile-first SaaS for Indian weddings: organisers manage events and **wedding fu
 |---|---|
 | Organiser app (Next.js, mobile-first) | Events, functions (time-zone-correct), guests and groups, CSV import wizard with duplicate/error preview, invitations, per-guest links, RSVP corrections with history, campaigns with recipient/cost preview, catering, check-in mode with camera QR scan, team & roles, opt-outs, audit log, data export/deletion |
 | Guest page (`/r#token`) | English/Hindi, adults/children counts, retry-safe submission, edit until the deadline, QR for entry, safe states for expired/revoked/closed links |
-| API (NestJS modular monolith) | Versioned REST `/v1`, zod validation, sessions + CSRF, tenant isolation, role matrix, idempotency keys, optimistic concurrency, audit log, OpenAPI at `/docs` |
+| API (NestJS modular monolith) | Versioned REST `/v1`, zod validation, sessions + CSRF, tenant isolation, role matrix, idempotency keys, optimistic concurrency, audit log, OpenAPI at `/docs` (on by default outside production; set `DOCS_ENABLED=true` to expose it in production) |
 | Worker | Postgres outbox + `SKIP LOCKED` dispatcher with leases, retries/backoff, dead-lettering, provider-timeout reconciliation, quiet hours, retention and scheduled deletions |
 | Messaging safety | Fake provider by default; live mode fails closed; consent evidence, attestation, opt-out suppression, cost confirmation and spend cap |
 
