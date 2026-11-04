@@ -7,7 +7,18 @@ import { AuditService, AnalyticsService } from '../audit/audit.service';
 import { isValidTimezone, parseEventTime, toEventLocal } from '../common/time';
 import type { RequestCtx } from '../common/request';
 
-const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD');
+/** YYYY-MM-DD that is also a real calendar date (rejects 2026-02-31, 2026-13-45). */
+export const isRealCalendarDate = (v: string): boolean => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+  if (!m) return false;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const t = new Date(Date.UTC(y, mo - 1, d));
+  return y >= 1900 && y <= 2200 && t.getUTCFullYear() === y && t.getUTCMonth() === mo - 1 && t.getUTCDate() === d;
+};
+const date = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD')
+  .refine(isRealCalendarDate, 'Not a valid calendar date');
 export const EVENT_STATUSES = ['draft', 'active', 'completed', 'cancelled', 'archived'] as const;
 export const FUNCTION_STATUSES = ['draft', 'active', 'cancelled', 'completed'] as const;
 
