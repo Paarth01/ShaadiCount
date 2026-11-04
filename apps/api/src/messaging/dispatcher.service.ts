@@ -52,7 +52,7 @@ export class DispatcherService {
     await this.markRunning(claimed.map((m) => m.campaign_id));
     for (const m of claimed) {
       stats.claimed++;
-      await this.process(m, now, stats);
+      await this.processSafely(m, now, stats);
     }
     await this.refreshCampaigns();
     return stats;
@@ -70,10 +70,43 @@ export class DispatcherService {
     );
     for (const m of rows) {
       stats.claimed++;
-      await this.process(m, now, stats);
+      await this.processSafely(m, now, stats);
     }
     await this.refreshCampaigns();
     return stats;
+  }
+
+  /**
+   * One failing message must not abort the batch or loop forever. An unexpected exception (provider adapter bug,
+   * transient database error) counts as an attempt: retry with exponential backoff, then dead-letter at the max attempts.
+   */
+  private async processSafely(m: any, now: Date, stats: DispatchStats) {
+    try {
+      await this.process(m, now, stats);
+    } catch (e) {
+      process.stderr.write(
+        JSON.stringify({
+          ts: new Date().toISOString(),
+          level: 'error',
+          msg: 'dispatch_exception',
+          messageId: m.id,
+          errorMessage: (e as Error).message,
+        }) + '\n',
+      );
+      try {
+        const r = await this.db.one<{ attempt_count: number }>(`SELECT attempt_count FROM scheduled_messages WHERE id=$1`, [m.id]);
+        const n = r?.attempt_count ?? 0;
+        if (n >= this.cfg.MESSAGE_MAX_ATTEMPTS) {
+          if (await this.setStatus(m, 'failed', { error: 'DISPATCH_EXCEPTION', deadLetter: true })) stats.failed++;
+        } else {
+          const delayMs = this.cfg.MESSAGE_BACKOFF_BASE_SECONDS * 1000 * 2 ** Math.max(0, n - 1);
+          if (await this.setStatus(m, 'scheduled', { error: 'DISPATCH_EXCEPTION', nextAt: new Date(now.getTime() + delayMs) }))
+            stats.retried++;
+        }
+      } catch {
+        // Database unavailable: the lease expires and the message is reclaimed on a later tick.
+      }
+    }
   }
 
   private async reclaimExpiredLeases(now: Date) {
@@ -111,7 +144,7 @@ export class DispatcherService {
       const r = await q.query(
         `UPDATE scheduled_messages SET status=$2, skip_reason=COALESCE($3,skip_reason), last_error_code=$4, next_attempt_at=COALESCE($5,next_attempt_at), scheduled_at=CASE WHEN $5::timestamptz IS NOT NULL AND $2='scheduled' THEN $5 ELSE scheduled_at END,
                 provider=COALESCE($6::text, provider), provider_message_id=COALESCE($7,provider_message_id), dead_lettered_at=CASE WHEN $8 THEN now() ELSE dead_lettered_at END, locked_until=NULL, updated_at=now()
-          WHERE id=$1 AND status IN ('queued','cancelled') RETURNING id`,
+          WHERE id=$1 AND (status='queued' OR (status='cancelled' AND $2 IN ('submitted','unknown'))) RETURNING id`,
         [
           m.id,
           to,
