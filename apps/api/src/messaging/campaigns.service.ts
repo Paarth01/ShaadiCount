@@ -232,6 +232,9 @@ export class CampaignsService {
             ? Math.min(ws.message_spend_cap_paise ?? Infinity, this.cfg.LIVE_SPEND_CAP_PAISE ?? Infinity)
             : (ws.message_spend_cap_paise ?? Infinity);
         if (cap !== Infinity) {
+          // Serialise cap checks per workspace: the campaign row lock alone lets two different campaigns both pass the
+          // check concurrently and together exceed the cap. Released automatically at commit/rollback.
+          await q.query(`SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, [`spendcap:${ctx.workspace!.id}`]);
           const used = (await q.one<{ s: number }>(
             `SELECT COALESCE(sum(estimated_cost_paise),0)::bigint AS s FROM scheduled_messages WHERE workspace_id=$1 AND status NOT IN ('cancelled','skipped','failed')`,
             [ctx.workspace!.id],
