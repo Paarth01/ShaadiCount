@@ -27,7 +27,23 @@ class TxClient implements Q {
 export class DbService implements Q, OnModuleDestroy {
   readonly pool: Pool;
   constructor(@Inject(CONFIG) cfg: Config) {
-    this.pool = new Pool({ connectionString: cfg.DATABASE_URL, max: 10, statement_timeout: 20_000 });
+    this.pool = new Pool({
+      connectionString: cfg.DATABASE_URL,
+      max: 10,
+      statement_timeout: 20_000,
+      // Fail fast instead of hanging forever when the pool is exhausted or the database is unreachable.
+      connectionTimeoutMillis: 10_000,
+      idleTimeoutMillis: 30_000,
+      idle_in_transaction_session_timeout: 30_000,
+    });
+    // Without a listener, an error on an idle pooled client (database restart, failover, network reset) is an
+    // unhandled 'error' event and crashes the whole process. Log it; pg discards the broken client by itself.
+    this.pool.on('error', (err) => {
+      process.stderr.write(
+        JSON.stringify({ ts: new Date().toISOString(), level: 'error', msg: 'pg_pool_idle_client_error', errorMessage: err.message }) +
+          '\n',
+      );
+    });
   }
   async query<T = any>(sql: string, params: unknown[] = []): Promise<T[]> {
     return (await this.pool.query(sql, params as any[])).rows as T[];
@@ -38,16 +54,20 @@ export class DbService implements Q, OnModuleDestroy {
   /** Runs fn inside a transaction; commits on success and rolls back on any throw. */
   async tx<T>(fn: (q: Q) => Promise<T>): Promise<T> {
     const client = await this.pool.connect();
+    let broken = false;
     try {
       await client.query('BEGIN');
       const out = await fn(new TxClient(client));
       await client.query('COMMIT');
       return out;
     } catch (e) {
-      await client.query('ROLLBACK').catch(() => undefined);
+      // If even ROLLBACK fails the connection is unusable: tell the pool to destroy it instead of reusing it.
+      await client.query('ROLLBACK').catch(() => {
+        broken = true;
+      });
       throw e;
     } finally {
-      client.release();
+      client.release(broken);
     }
   }
   async onModuleDestroy() {
