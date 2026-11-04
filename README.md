@@ -87,3 +87,17 @@ See [docs/project/spec-audit.md](docs/project/spec-audit.md) and ADRs [004](docs
 ## Requirements
 
 Node ≥ 22.12, npm ≥ 10, PostgreSQL 16. Dependencies are pinned to major versions that were validated (Nest 11, Next 15, React 19, zod 4, TypeScript 5.9); newer majors exist in the registry but were not validated.
+
+## Security and audit
+
+A structured production audit was run on this codebase (security, bugs, features, production readiness). Everything below is in
+`docs/security/`:
+
+| Document | What it is |
+|---|---|
+| [audit-report-2026-11.md](docs/security/audit-report-2026-11.md) | The audit of the code as it was before the fixes (findings, evidence, ratings) |
+| [audit-fixes-2026-11.md](docs/security/audit-fixes-2026-11.md) | What was fixed for each finding, and how |
+| [known-limitations.md](docs/security/known-limitations.md) | What is deliberately not done or still open |
+
+The git history reflects this: the first commit is the original import, followed by one commit per fix group. A snapshot of the
+log is in [docs/git-log.txt](docs/git-log.txt).
