@@ -1,5 +1,6 @@
 import { parse } from 'csv-parse/sync';
 import { isValidEmail, normalizePhone } from '../common/phone';
+import { csvUncell } from '../common/csv';
 
 export interface ImportMapping {
   name?: string;
@@ -89,7 +90,7 @@ export function parseGuestCsv(csv: string, override: ImportMapping | undefined, 
     const rowNumber = idx + 2; // header is row 1
     const errors: RowError[] = [];
     const warnings: string[] = [];
-    const get = (k: keyof ImportMapping) => (mapping[k] ? (rec[mapping[k]!] ?? '').trim() : '');
+    const get = (k: keyof ImportMapping) => (mapping[k] ? csvUncell((rec[mapping[k]!] ?? '').trim()) : '');
 
     const name = get('name');
     if (!name) errors.push({ field: 'name', message: 'Name is required' });

@@ -7,6 +7,14 @@ export function csvCell(value: unknown): string {
   return s;
 }
 
+/**
+ * Inverse of the formula guard applied by csvCell: our own exports prefix cells starting with = + - @ (e.g. phone
+ * numbers such as +91...) with a single quote, so imports must remove it again or exported files cannot be re-imported.
+ */
+export function csvUncell(value: string): string {
+  return /^'[=+\-@\t\r]/.test(value) ? value.slice(1) : value;
+}
+
 export function toCsv(headers: string[], rows: unknown[][]): string {
   return [headers.map(csvCell).join(','), ...rows.map((r) => r.map(csvCell).join(','))].join('\r\n') + '\r\n';
 }
