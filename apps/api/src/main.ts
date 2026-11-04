@@ -14,7 +14,7 @@ async function bootstrap() {
   const cfg = app.get<Config>(CONFIG);
   const logger = app.get<AppLogger>('LOGGER');
   configureApp(app, cfg, logger);
-  setupDocs(app);
+  setupDocs(app, cfg.DOCS_ENABLED);
   app.enableShutdownHooks();
   await app.listen(cfg.PORT, '0.0.0.0');
   logger.info('api_listening', { port: cfg.PORT, messagingMode: cfg.MESSAGING_MODE });

@@ -8,6 +8,7 @@ import { AuditService } from '../audit/audit.service';
 import { SESSION_COOKIE, SessionService } from './session.service';
 import { Permission, Role, can } from './permissions';
 import { safeEqual } from '../common/crypto';
+import { RateLimitService } from '../common/rate-limit.service';
 
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -27,6 +28,7 @@ export class AccessGuard implements CanActivate {
     private readonly sessions: SessionService,
     private readonly db: DbService,
     private readonly audit: AuditService,
+    private readonly limiter: RateLimitService,
     @Inject(CONFIG) private readonly cfg: Config,
   ) {}
 
@@ -40,6 +42,8 @@ export class AccessGuard implements CanActivate {
     if (!session) throw unauthorized();
     req.ctx.user = session.user;
     req.ctx.sessionId = session.sessionId;
+    // Per-user ceiling for every authenticated request: bounds abuse by a single (possibly compromised) account.
+    this.limiter.hit(`user:${session.user.id}`, this.cfg.RATE_LIMIT_USER_PER_MIN);
 
     if (MUTATING.has(req.method)) {
       const origin = req.header('origin');
@@ -60,7 +64,12 @@ export class AccessGuard implements CanActivate {
       );
       if (!m) {
         // Same response whether the workspace exists or not: no existence oracle.
-        await this.audit.security(req.ctx, 'workspace_access_denied', { method: req.method, route: req.route?.path }, null);
+        // Throttled per user so probing random workspace ids cannot flood the audit log.
+        const k = `deny-audit:${session.user.id}`;
+        if (this.limiter.count(k) < 20) {
+          this.limiter.hit(k, 20);
+          await this.audit.security(req.ctx, 'workspace_access_denied', { method: req.method, route: req.route?.path }, null);
+        }
         throw notFound('Workspace');
       }
       req.ctx.workspace = { id: wsId.toLowerCase(), role: m.role, name: m.name };
@@ -71,12 +80,16 @@ export class AccessGuard implements CanActivate {
       if (!req.ctx.workspace) throw forbidden();
       const role = req.ctx.workspace.role;
       if (!needed.every((p) => can(role, p))) {
-        await this.audit.security(
-          req.ctx,
-          'permission_denied',
-          { role, needed, method: req.method, route: req.route?.path },
-          req.ctx.workspace.id,
-        );
+        const k = `deny-audit:${session.user.id}`;
+        if (this.limiter.count(k) < 20) {
+          this.limiter.hit(k, 20);
+          await this.audit.security(
+            req.ctx,
+            'permission_denied',
+            { role, needed, method: req.method, route: req.route?.path },
+            req.ctx.workspace.id,
+          );
+        }
         throw forbidden();
       }
     }

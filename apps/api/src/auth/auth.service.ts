@@ -8,18 +8,8 @@ import { CONFIG, Config } from '../config/config';
 import { SessionService } from './session.service';
 import { AuditService, AnalyticsService } from '../audit/audit.service';
 import { isValidEmail } from '../common/phone';
+import { weakPasswordReason } from './password-policy';
 import type { RequestCtx } from '../common/request';
-
-const COMMON = new Set([
-  'password123',
-  '1234567890',
-  'qwertyuiop',
-  'iloveyou123',
-  'welcome1234',
-  'letmein1234',
-  'passw0rd123',
-  'shaadicount',
-]);
 
 export const registerSchema = z.object({
   email: z.string().trim().toLowerCase().max(254).refine(isValidEmail, 'Enter a valid email address'),
@@ -44,11 +34,9 @@ export class AuthService {
   ) {}
 
   private checkPassword(pw: string, email: string) {
-    const local = email.split('@')[0];
-    if (COMMON.has(pw.toLowerCase()) || (local.length >= 4 && pw.toLowerCase().includes(local))) {
-      throw new ApiError(422, 'WEAK_PASSWORD', 'Choose a password that is not common and does not contain your email name', [
-        { field: 'password', message: 'Password is too easy to guess' },
-      ]);
+    const reason = weakPasswordReason(pw, email);
+    if (reason) {
+      throw new ApiError(422, 'WEAK_PASSWORD', 'Choose a stronger password', [{ field: 'password', message: reason }]);
     }
   }
 
@@ -94,7 +82,10 @@ export class AuthService {
 
   async login(ctx: RequestCtx, input: z.infer<typeof loginSchema>, ua?: string) {
     this.limiter.hit(`login:ip:${ctx.ip}`, this.cfg.RATE_LIMIT_LOGIN_PER_MIN);
-    this.limiter.hit(`login:email:${input.email}`, this.cfg.RATE_LIMIT_LOGIN_PER_MIN);
+    // Per email AND client: a third party hammering someone's email from their own address can no longer lock that
+    // person out (they use a different bucket). A much higher email-only ceiling still caps distributed guessing.
+    this.limiter.hit(`login:email-ip:${input.email}:${ctx.ip}`, this.cfg.RATE_LIMIT_LOGIN_PER_MIN);
+    this.limiter.hit(`login:email:${input.email}`, this.cfg.RATE_LIMIT_LOGIN_EMAIL_PER_MIN);
     const u = await this.db.one<{ id: string; email: string; display_name: string; password_hash: string; disabled_at: Date | null }>(
       `SELECT id, email, display_name, password_hash, disabled_at FROM users WHERE lower(email) = $1`,
       [input.email],

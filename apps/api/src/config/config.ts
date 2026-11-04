@@ -19,12 +19,20 @@ const schema = z.object({
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error', 'silent']).default('info'),
   WEB_ORIGINS: z.string().default('http://localhost:3000'),
   PUBLIC_APP_URL: z.string().url().default('http://localhost:3000'),
-  TRUST_PROXY: z.coerce.number().int().min(0).default(0),
+  // Number of reverse proxies in front of the API (browser -> LB -> Next -> API is 2). REQUIRED in production:
+  // a wrong value collapses every client into one rate-limit bucket (too low) or lets clients spoof their IP (too high).
+  // An empty value (TRUST_PROXY=) counts as unset, not as 0.
+  TRUST_PROXY: z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().int().min(0).max(10).optional()),
+  // Interactive API docs and /v1/openapi.json. Default: on outside production, off in production.
+  DOCS_ENABLED: bool.optional(),
 
   // Secrets: no defaults on purpose. Generate locally with scripts/gen-env.sh; use a secret manager elsewhere.
   CSRF_SECRET: secret,
   RSVP_TOKEN_SECRET: secret,
   PSEUDONYM_SECRET: secret,
+  // Key for opt-out suppression hashes. Falls back to PSEUDONYM_SECRET so existing hashes stay valid. Set it once and
+  // NEVER rotate it without re-hashing communication_suppressions, or opted-out contacts become messageable again.
+  SUPPRESSION_HASH_SECRET: secret.optional(),
   MESSAGING_WEBHOOK_SECRET: secret.optional(),
 
   SESSION_TTL_HOURS: z.coerce.number().int().min(1).default(168),
@@ -33,7 +41,9 @@ const schema = z.object({
   // Rate limits (per minute, per key). Tests lower these.
   RATE_LIMIT_LOGIN_PER_MIN: z.coerce.number().int().min(1).default(10),
   RATE_LIMIT_REGISTER_PER_MIN: z.coerce.number().int().min(1).default(5),
-  RATE_LIMIT_PUBLIC_PER_MIN: z.coerce.number().int().min(1).default(60),
+  RATE_LIMIT_LOGIN_EMAIL_PER_MIN: z.coerce.number().int().min(1).default(100),
+  RATE_LIMIT_USER_PER_MIN: z.coerce.number().int().min(1).default(600),
+  RATE_LIMIT_PUBLIC_PER_MIN: z.coerce.number().int().min(1).default(120),
   RATE_LIMIT_PUBLIC_INVALID_PER_MIN: z.coerce.number().int().min(1).default(10),
   RATE_LIMIT_WEBHOOK_PER_MIN: z.coerce.number().int().min(1).default(600),
 
@@ -62,8 +72,10 @@ const schema = z.object({
   EXPORT_RETENTION_DAYS: z.coerce.number().int().min(1).default(7),
 });
 
-export type Config = Omit<z.infer<typeof schema>, 'FAKE_PROVIDER_STORE_BODIES'> & {
+export type Config = Omit<z.infer<typeof schema>, 'FAKE_PROVIDER_STORE_BODIES' | 'TRUST_PROXY' | 'DOCS_ENABLED'> & {
   FAKE_PROVIDER_STORE_BODIES: boolean;
+  TRUST_PROXY: number;
+  DOCS_ENABLED: boolean;
   webOrigins: string[];
   isProd: boolean;
 };
@@ -79,6 +91,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   }
   const c = parsed.data;
   const isProd = c.NODE_ENV === 'production';
+  if (isProd && c.TRUST_PROXY === undefined) {
+    throw new ConfigError(
+      'Invalid configuration: TRUST_PROXY must be set explicitly in production (number of reverse proxies in front of the API; ' +
+        '0 only if clients connect to the API directly). See docs/devops/deployment.md.',
+    );
+  }
+  if (isProd && c.PSEUDONYM_SECRET === c.CSRF_SECRET) {
+    throw new ConfigError('Invalid configuration: PSEUDONYM_SECRET and CSRF_SECRET must be different values');
+  }
 
   // Live messaging is disabled unless EVERY safeguard is configured. There is intentionally no silent fallback.
   if (c.LIVE_MESSAGING_ENABLED || c.MESSAGING_MODE === 'live') {
@@ -107,7 +128,14 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const origins = c.WEB_ORIGINS.split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  return { ...c, FAKE_PROVIDER_STORE_BODIES: c.FAKE_PROVIDER_STORE_BODIES ?? !isProd, webOrigins: origins, isProd };
+  return {
+    ...c,
+    TRUST_PROXY: c.TRUST_PROXY ?? 0,
+    DOCS_ENABLED: c.DOCS_ENABLED ?? !isProd,
+    FAKE_PROVIDER_STORE_BODIES: c.FAKE_PROVIDER_STORE_BODIES ?? !isProd,
+    webOrigins: origins,
+    isProd,
+  };
 }
 
 export const CONFIG = Symbol('CONFIG');

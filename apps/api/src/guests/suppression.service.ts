@@ -32,7 +32,7 @@ export class SuppressionService {
     return channel === 'email' ? (isValidEmail(value.toLowerCase()) ? value.toLowerCase() : null) : normalizePhone(value);
   }
   hashContact(workspaceId: string, channel: Channel, normalized: string): string {
-    return hmacHex(this.cfg.PSEUDONYM_SECRET, `suppress:${workspaceId}:${channel}:${normalized}`);
+    return hmacHex(this.cfg.SUPPRESSION_HASH_SECRET ?? this.cfg.PSEUDONYM_SECRET, `suppress:${workspaceId}:${channel}:${normalized}`);
   }
   mask(channel: Channel, normalized: string) {
     return (channel === 'email' ? maskEmail(normalized) : maskPhone(normalized)) ?? '•••';

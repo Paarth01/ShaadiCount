@@ -13,6 +13,19 @@ export function configureApp(app: INestApplication, cfg: Config, logger: AppLogg
   const x = app as NestExpressApplication;
   x.set('trust proxy', cfg.TRUST_PROXY);
   x.disable('x-powered-by');
+  // Detects the classic misconfiguration: a proxy forwards the client address but TRUST_PROXY=0, so every client looks
+  // like the proxy and shares one rate-limit bucket (one abusive client could then block everybody). Logged once.
+  let warnedProxy = false;
+  x.use((req: any, _res: any, next: any) => {
+    if (!warnedProxy && cfg.TRUST_PROXY === 0 && req.headers['x-forwarded-for']) {
+      warnedProxy = true;
+      logger.warn('trust_proxy_misconfigured', {
+        detail:
+          'X-Forwarded-For received but TRUST_PROXY=0: all clients share rate-limit buckets. Set TRUST_PROXY to the number of proxies in front of the API.',
+      });
+    }
+    next();
+  });
   // Strict CSP for the JSON API; the interactive API docs page needs its own relaxed policy.
   const strict = helmet({
     contentSecurityPolicy: { directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] } },

@@ -11,8 +11,8 @@ export function loadOpenApi(): any {
 }
 
 /** Serves the hand-maintained OpenAPI contract (api/openapi.yaml) at /docs and /v1/openapi.json. */
-export function setupDocs(app: INestApplication) {
-  if (!existsSync(OPENAPI_PATH)) return;
+export function setupDocs(app: INestApplication, enabled = true) {
+  if (!enabled || !existsSync(OPENAPI_PATH)) return;
   const doc = loadOpenApi();
   SwaggerModule.setup('docs', app, doc, { jsonDocumentUrl: 'v1/openapi.json' });
 }
