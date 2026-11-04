@@ -239,7 +239,23 @@ export class RetentionService {
       `DELETE FROM sessions WHERE expires_at <= $1::timestamptz - interval '30 days' OR revoked_at <= $1::timestamptz - interval '30 days' RETURNING id`,
       [now],
     );
+    // Operational tables that otherwise grow without bound. audit_logs are intentionally NOT pruned here.
+    const outbox = await this.db.query(
+      `DELETE FROM outbox_events WHERE published_at IS NOT NULL AND published_at <= $1::timestamptz - interval '30 days' RETURNING id`,
+      [now],
+    );
+    const webhooks = await this.db.query(
+      `DELETE FROM provider_webhook_events WHERE received_at <= $1::timestamptz - interval '90 days' AND processing_status <> 'pending' RETURNING id`,
+      [now],
+    );
+    const attempts = await this.db.query(
+      `DELETE FROM message_attempts WHERE started_at <= $1::timestamptz - interval '90 days' RETURNING id`,
+      [now],
+    );
     return {
+      outboxEvents: outbox.length,
+      webhookEvents: webhooks.length,
+      messageAttempts: attempts.length,
       exports: exports.length,
       imports: imports.length,
       idempotencyKeys: idem.length,
