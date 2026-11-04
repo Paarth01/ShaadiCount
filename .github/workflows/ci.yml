@@ -1,0 +1,71 @@
+name: CI
+on: { push: { branches: [main] }, pull_request: {} }
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+permissions: { contents: read }
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run check:secrets
+      - run: npm audit --omit=dev --audit-level=high
+      - name: OpenAPI file is up to date
+        run: node scripts/gen-openapi.mjs && git diff --exit-code api/openapi.yaml
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: shaadicount, POSTGRES_PASSWORD: shaadicount_local_dev, POSTGRES_DB: shaadicount_test }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U shaadicount" --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgres://shaadicount:shaadicount_local_dev@localhost:5432/shaadicount_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run test:unit
+      - run: npm run test:integration   # also proves migrations apply to an empty database
+      - run: npm run test:e2e -w @shaadicount/api
+
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    needs: [quality]
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: shaadicount, POSTGRES_PASSWORD: shaadicount_local_dev, POSTGRES_DB: shaadicount_dev }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U shaadicount" --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: bash scripts/gen-env.sh
+      - run: npm run build
+      - name: Start API + worker + web and smoke test
+        run: |
+          set -a; . ./.env; set +a
+          node apps/api/dist/db/migrate-cli.js
+          (cd apps/api && node dist/main.js &) ; (cd apps/api && node dist/worker.js &)
+          (cd apps/web && npx next start -p 3000 &)
+          for i in $(seq 1 40); do curl -sf localhost:4000/v1/health && curl -sf localhost:3000/login >/dev/null && break; sleep 1; done
+          WEB_URL=http://localhost:3000 npm run test:smoke -w @shaadicount/web
+      - name: Docker images build
+        run: |
+          docker build -f Dockerfile.api -t shaadicount-api .
+          docker build -f Dockerfile.web -t shaadicount-web .

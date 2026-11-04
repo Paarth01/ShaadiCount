@@ -1,0 +1,7 @@
+# ADR-004: Derived, hash-only invitation tokens
+
+- **Status:** Accepted (implementation decision resolving a spec conflict)
+- **Context:** The security docs require "store only a hash of the RSVP token". The messaging docs require reminders to contain the guest's link, so the worker must be able to rebuild the link long after the token was first issued. A pure random token stored only as a hash cannot be re-sent.
+- **Decision:** `token = base64url(HMAC-SHA256(RSVP_TOKEN_SECRET, "rsvp:<invitationId>:<tokenVersion>"))` (256-bit). The database stores only `SHA-256(token)`. The check-in code is derived the same way (`checkin:` prefix, 12 characters from a 32-symbol alphabet without 0/O/1/I) and is also stored only as a hash. Rotation increments `token_version`; revocation sets `revoked_at`.
+- **Consequences:** A database leak alone yields no usable links (the server secret is also needed). The server can re-derive a link on demand for authorised organizers and for the worker, and no plaintext token is ever persisted or logged. Losing or rotating `RSVP_TOKEN_SECRET` invalidates every outstanding link, so it must be treated as a production secret with a planned rotation procedure (see `docs/devops/deployment.md`). Links use a URL fragment (`/r#<token>`) so tokens stay out of server logs, link-preview crawlers and `Referer` headers.
+- **Alternatives rejected:** storing encrypted tokens (adds a key-management surface with no benefit over HMAC); rotating the token on every send (breaks links already delivered).

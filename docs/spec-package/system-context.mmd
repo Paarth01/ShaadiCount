@@ -1,0 +1,11 @@
+flowchart LR
+  Host[Host / Planner] --> Mobile[Organizer App]
+  Guest[Guest] --> RSVP[Guest RSVP Web]
+  Mobile --> API[REST API]
+  RSVP --> API
+  API --> DB[(PostgreSQL)]
+  DB --> Outbox[(Transactional Outbox)]
+  Outbox --> Worker[Workers]
+  Worker --> Provider[Approved Messaging Provider]
+  Provider --> Hook[Verified Webhook]
+  Hook --> API

@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1
+# API + worker image (same image, different command). Built from the repo root:  docker build -f Dockerfile.api -t shaadicount-api .
+FROM node:22-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+RUN npm ci --workspace @shaadicount/api --include-workspace-root
+COPY apps/api apps/api
+RUN npm run build -w @shaadicount/api
+
+FROM node:22-slim AS run
+ENV NODE_ENV=production
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+RUN npm ci --omit=dev --workspace @shaadicount/api --include-workspace-root && npm cache clean --force
+COPY --from=build /app/apps/api/dist apps/api/dist
+# Compiled code resolves these relative to apps/api/dist: keep the layout.
+COPY db db
+COPY api api
+USER node
+EXPOSE 4000
+HEALTHCHECK --interval=15s --timeout=3s --retries=5 CMD node -e "fetch('http://127.0.0.1:4000/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+# API:     node apps/api/dist/main.js
+# Worker:  node apps/api/dist/worker.js
+# Migrate: node apps/api/dist/db/migrate-cli.js
+CMD ["node", "apps/api/dist/main.js"]

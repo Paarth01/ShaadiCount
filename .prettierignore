@@ -1,0 +1,11 @@
+node_modules
+dist
+.next
+coverage
+package-lock.json
+api/openapi.yaml
+docs
+*.md
+.github
+docker-compose.yml
+apps/web/public

@@ -1,0 +1,6 @@
+# ADR-005: Workspace-scoped URLs, server-side membership, and 404 concealment
+
+- **Status:** Accepted (deviation from `starter-openapi.yaml`)
+- **Context:** The starter OpenAPI accepted `workspaceId` in request bodies, while the authorization doc says the client-supplied workspace must never be trusted.
+- **Decision:** Every tenant resource lives under `/v1/workspaces/{workspaceId}/...`. A single global guard resolves the caller's membership for that id from the database on every request, derives the role, then checks the route's declared permission. Resource lookups are constrained by the authorised workspace id, and scoped roles (planner, check-in staff, read-only, caterer) additionally need an assignment covering the event/function. Non-members and unassigned users receive the same generic `404` as for a missing resource; role violations receive `403`. Both are written to the audit log as `security.*` events.
+- **Consequences:** No existence oracle for other tenants' ids. Defence in depth: all tenant tables carry `workspace_id` and reference parents through composite foreign keys, so even buggy SQL cannot attach a row to another tenant's parent (tested). Row-level security is **not** enabled (see known limitations).

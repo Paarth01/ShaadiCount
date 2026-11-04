@@ -1,0 +1,6 @@
+# ADR-007: PostgreSQL outbox + polling worker for the MVP (no Redis)
+
+- **Status:** Accepted. Supersedes the Redis/BullMQ part of ADR-003 for the MVP (the implementation contract and decisions baseline already preferred Postgres-first).
+- **Decision:** Scheduled messages live in `scheduled_messages`; a separate worker process claims due rows with `FOR UPDATE SKIP LOCKED`, takes a 120 s lease, re-checks eligibility, writes an attempt row **before** calling the provider, and uses a deterministic per-message idempotency key. Domain events (e.g. RSVP changed) are written to `outbox_events` in the same transaction and relayed by the worker with retry/backoff and dead-lettering. Unknown outcomes (provider timeout) are reconciled by re-sending with the same idempotency key.
+- **Why:** one fewer stateful dependency; transactional consistency between RSVP/consent state and queued work; simple to test with a real database.
+- **Scale-out path:** the dispatcher and relay are separate services behind small interfaces and can be moved to Redis/BullMQ or a managed queue without changing the data model. The in-memory rate limiter must also move to a shared store before running more than one API instance.

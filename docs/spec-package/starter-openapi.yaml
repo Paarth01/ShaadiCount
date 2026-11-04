@@ -1,0 +1,125 @@
+openapi: 3.1.0
+info:
+  title: ShaadiCount API
+  version: 0.1.0
+  description: Initial contract starter. Expand schemas and security requirements before implementation.
+servers:
+  - url: https://api.example.invalid/v1
+paths:
+  /workspaces:
+    get:
+      summary: List workspaces for the authenticated user
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Workspace list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Workspace"
+  /events:
+    post:
+      summary: Create event
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [workspaceId, name, timezone]
+              properties:
+                workspaceId: { type: string }
+                name: { type: string, minLength: 1, maxLength: 160 }
+                timezone: { type: string, example: Asia/Kolkata }
+      responses:
+        "201": { description: Event created }
+        "403": { description: Workspace access denied }
+        "422": { description: Validation error }
+  /public/rsvp/{token}:
+    get:
+      summary: Get minimal invitation details
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema: { type: string, minLength: 32 }
+      responses:
+        "200": { description: Minimal event/function details }
+        "404": { description: Invalid, expired or revoked invitation }
+        "429": { description: Rate limited }
+  /public/rsvp/{token}/response:
+    put:
+      summary: Create or update function-specific RSVP
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema: { type: string, minLength: 32 }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RsvpRequest"
+      responses:
+        "200": { description: Response saved }
+        "404": { description: Invalid, expired or revoked invitation }
+        "409": { description: Stale response version or conflicting update }
+        "422": { description: Party cap, deadline or validation error }
+        "429": { description: Rate limited }
+  /events/{eventId}/functions/{functionId}/dashboard:
+    get:
+      summary: Function dashboard metrics
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: functionId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Function metrics }
+        "403": { description: Permission denied }
+        "404": { description: Not found }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 16, maxLength: 128 }
+  schemas:
+    Workspace:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+    RsvpRequest:
+      type: object
+      required: [status, adultCount, childCount, version]
+      properties:
+        status:
+          type: string
+          enum: [yes, no, maybe]
+        adultCount: { type: integer, minimum: 0, maximum: 100 }
+        childCount: { type: integer, minimum: 0, maximum: 100 }
+        version: { type: integer, minimum: 0 }
+        language: { type: string, enum: [en, hi] }

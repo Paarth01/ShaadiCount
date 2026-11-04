@@ -1,0 +1,35 @@
+{
+  "name": "@shaadicount/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ShaadiCount organizer and guest web app (Next.js, mobile-first)",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:smoke": "node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "next": "^15.5.0",
+    "qrcode": "^1.5.4",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@types/node": "^22.15.0",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "eslint": "^9.30.0",
+    "eslint-config-next": "^15.5.0",
+    "jsdom": "^26.1.0",
+    "typescript": "~5.9.0",
+    "vitest": "^3.2.0"
+  }
+}

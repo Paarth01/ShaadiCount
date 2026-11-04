@@ -1,0 +1,4741 @@
+openapi: 3.1.0
+info:
+  title: ShaadiCount API
+  version: 0.1.0
+  description: "Versioned REST API for the ShaadiCount MVP. Session cookie (HttpOnly) + X-CSRF-Token header on every state-changing request. Workspace is always taken from the URL and verified against the caller's membership server-side; non-members receive a generic 404. Real WhatsApp/SMS sending is disabled by default: the fake provider is used unless every live safeguard is configured."
+servers:
+  - url: http://localhost:4000
+    description: Local API (the web app proxies /v1 to it)
+tags:
+  - name: System
+  - name: Auth
+  - name: Workspaces
+  - name: Team
+  - name: Audit
+  - name: Events
+  - name: Functions
+  - name: Guests
+  - name: Messaging
+  - name: Import
+  - name: Invitations
+  - name: RSVP
+  - name: Public RSVP
+  - name: Reporting
+  - name: Catering
+  - name: Exports
+  - name: Check-in
+  - name: Privacy
+  - name: Webhooks
+security:
+  - cookieAuth: []
+    csrfToken: []
+paths:
+  /v1/health:
+    get:
+      tags:
+        - System
+      summary: Liveness probe
+      operationId: get_v1_health
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "410":
+          $ref: "#/components/responses/E410"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      security: []
+  /v1/health/ready:
+    get:
+      tags:
+        - System
+      summary: Readiness probe (checks the database)
+      operationId: get_v1_health_ready
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "410":
+          $ref: "#/components/responses/E410"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      security: []
+  /v1/auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Create an account (optionally with a first workspace)
+      operationId: post_v1_auth_register
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "410":
+          $ref: "#/components/responses/E410"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Register"
+      security: []
+  /v1/auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Log in; sets an HttpOnly session cookie and returns a CSRF token
+      operationId: post_v1_auth_login
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "410":
+          $ref: "#/components/responses/E410"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Login"
+      security: []
+  /v1/auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: Log out and revoke the session
+      operationId: post_v1_auth_logout
+      responses:
+        "204":
+          description: No content
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+  /v1/auth/me:
+    get:
+      tags:
+        - Auth
+      summary: Current user, workspaces and a fresh CSRF token
+      operationId: get_v1_auth_me
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+  /v1/workspaces:
+    get:
+      tags:
+        - Workspaces
+      summary: Workspaces the caller belongs to
+      operationId: get_v1_workspaces
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+    post:
+      tags:
+        - Workspaces
+      summary: Create a workspace (caller becomes owner)
+      operationId: post_v1_workspaces
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWorkspace"
+  /v1/workspaces/{workspaceId}:
+    get:
+      tags:
+        - Workspaces
+      summary: Workspace details and messaging mode
+      operationId: get_v1_workspaces_workspaceId
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `workspace:read`."
+    patch:
+      tags:
+        - Workspaces
+      summary: Update name, quiet hours, spend cap
+      operationId: patch_v1_workspaces_workspaceId
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `workspace:manage`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWorkspace"
+  /v1/workspaces/{workspaceId}/contact-authority-attestation:
+    post:
+      tags:
+        - Workspaces
+      summary: Attest authority to contact uploaded guests (required before scheduling messages)
+      operationId: post_v1_workspaces_workspaceId_contact_authority_attestation
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `workspace:attest`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Attestation"
+  /v1/workspaces/{workspaceId}/members:
+    get:
+      tags:
+        - Team
+      summary: List members and assignments
+      operationId: get_v1_workspaces_workspaceId_members
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `members:read`."
+    post:
+      tags:
+        - Team
+      summary: Add a registered user with a role
+      operationId: post_v1_workspaces_workspaceId_members
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `members:manage`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddMember"
+  /v1/workspaces/{workspaceId}/members/{userId}:
+    patch:
+      tags:
+        - Team
+      summary: Change a role
+      operationId: patch_v1_workspaces_workspaceId_members_userId
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `members:manage`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMember"
+    delete:
+      tags:
+        - Team
+      summary: Remove a member (access ends immediately)
+      operationId: delete_v1_workspaces_workspaceId_members_userId
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: No content
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `members:manage`."
+  /v1/workspaces/{workspaceId}/members/{userId}/assignments:
+    put:
+      tags:
+        - Team
+      summary: Replace event/function assignments for scoped roles
+      operationId: put_v1_workspaces_workspaceId_members_userId_assignments
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `members:manage`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Assignments"
+  /v1/workspaces/{workspaceId}/usage:
+    get:
+      tags:
+        - Workspaces
+      summary: Usage counters (no billing in the MVP)
+      operationId: get_v1_workspaces_workspaceId_usage
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `usage:read`."
+  /v1/workspaces/{workspaceId}/audit-logs:
+    get:
+      tags:
+        - Audit
+      summary: Append-only audit log
+      operationId: get_v1_workspaces_workspaceId_audit_logs
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: before
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: action
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `audit:read`."
+  /v1/workspaces/{workspaceId}/events:
+    get:
+      tags:
+        - Events
+      summary: List events visible to the caller
+      operationId: get_v1_workspaces_workspaceId_events
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: includeArchived
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `events:read`."
+    post:
+      tags:
+        - Events
+      summary: Create an event
+      operationId: post_v1_workspaces_workspaceId_events
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `events:create`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEvent"
+  /v1/workspaces/{workspaceId}/events/{eventId}:
+    get:
+      tags:
+        - Events
+      summary: Event with its functions
+      operationId: get_v1_workspaces_workspaceId_events_eventId
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `events:read`."
+    patch:
+      tags:
+        - Events
+      summary: Update an event or change its status
+      operationId: patch_v1_workspaces_workspaceId_events_eventId
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `events:write`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEvent"
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions:
+    post:
+      tags:
+        - Functions
+      summary: Create a function (times are event-local or offset instants)
+      operationId: post_v1_workspaces_workspaceId_events_eventId_functions
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `events:write`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFunction"
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}:
+    get:
+      tags:
+        - Functions
+      summary: Function details (UTC + event-local times)
+      operationId: get_v1_workspaces_workspaceId_events_eventId_functions_functionId
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `events:read`."
+    patch:
+      tags:
+        - Functions
+      summary: Update a function
+      operationId: patch_v1_workspaces_workspaceId_events_eventId_functions_functionId
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `events:write`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFunction"
+  /v1/workspaces/{workspaceId}/events/{eventId}/guest-groups:
+    get:
+      tags:
+        - Guests
+      summary: List guest groups
+      operationId: get_v1_workspaces_workspaceId_events_eventId_guest_groups
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `guests:read`."
+    post:
+      tags:
+        - Guests
+      summary: Create a group
+      operationId: post_v1_workspaces_workspaceId_events_eventId_guest_groups
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `guests:write`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Group"
+  /v1/workspaces/{workspaceId}/events/{eventId}/guest-groups/{groupId}:
+    delete:
+      tags:
+        - Guests
+      summary: Delete a group (guests are kept)
+      operationId: delete_v1_workspaces_workspaceId_events_eventId_guest_groups_groupId
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: No content
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `guests:write`."
+  /v1/workspaces/{workspaceId}/events/{eventId}/guests:
+    get:
+      tags:
+        - Guests
+      summary: List guests (phones masked)
+      operationId: get_v1_workspaces_workspaceId_events_eventId_guests
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: groupId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+                  total:
+                    type: integer
+                required:
+                  - data
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `guests:read`."
+    post:
+      tags:
+        - Guests
+      summary: Create a guest; 409 DUPLICATE_GUEST unless allowDuplicate
+      operationId: post_v1_workspaces_workspaceId_events_eventId_guests
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `guests:write`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGuest"
+  /v1/workspaces/{workspaceId}/events/{eventId}/guests/{guestId}:
+    get:
+      tags:
+        - Guests
+      summary: Guest detail; ?reveal=true shows contact details (audited, needs guests:write)
+      operationId: get_v1_workspaces_workspaceId_events_eventId_guests_guestId
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: guestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: reveal
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `guests:read`."
+    patch:
+      tags:
+        - Guests
+      summary: Update a guest
+      operationId: patch_v1_workspaces_workspaceId_events_eventId_guests_guestId
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: guestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `guests:write`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGuest"
+    delete:
+      tags:
+        - Guests
+      summary: Erase a guest's personal data and revoke invitations
+      operationId: delete_v1_workspaces_workspaceId_events_eventId_guests_guestId
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: guestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: No content
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `guests:write`."
+  /v1/workspaces/{workspaceId}/events/{eventId}/consents:
+    post:
+      tags:
+        - Messaging
+      summary: Record permission evidence for messaging guests on a channel
+      operationId: post_v1_workspaces_workspaceId_events_eventId_consents
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `consent:write`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Consent"
+  /v1/workspaces/{workspaceId}/events/{eventId}/imports/preview:
+    post:
+      tags:
+        - Import
+      summary: Validate a CSV and flag errors/duplicates (nothing is saved)
+      operationId: post_v1_workspaces_workspaceId_events_eventId_imports_preview
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `guests:write`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportPreview"
+  /v1/workspaces/{workspaceId}/events/{eventId}/imports/{importId}:
+    get:
+      tags:
+        - Import
+      summary: Import status/result
+      operationId: get_v1_workspaces_workspaceId_events_eventId_imports_importId
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: importId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `guests:write`."
+  /v1/workspaces/{workspaceId}/events/{eventId}/imports/{importId}/commit:
+    post:
+      tags:
+        - Import
+      summary: Commit valid rows; idempotent. Does NOT grant messaging consent
+      operationId: post_v1_workspaces_workspaceId_events_eventId_imports_importId_commit
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: importId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 16
+            maxLength: 128
+          description: Unique key per logical operation; retries with the same key and body replay the first result
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `guests:write`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportCommit"
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/invitations:
+    get:
+      tags:
+        - Invitations
+      summary: List invitations with RSVP and delivery state
+      operationId: get_v1_workspaces_workspaceId_events_eventId_functions_functionId_invitations
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+                  total:
+                    type: integer
+                required:
+                  - data
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `guests:read`."
+    post:
+      tags:
+        - Invitations
+      summary: Invite guests to this function
+      operationId: post_v1_workspaces_workspaceId_events_eventId_functions_functionId_invitations
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `invitations:write`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInvitations"
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/invitations/{invitationId}:
+    patch:
+      tags:
+        - Invitations
+      summary: Change invited party size
+      operationId: patch_v1_workspaces_workspaceId_events_eventId_functions_functionId_invitations_invitationId
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: invitationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `invitations:write`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateInvitation"
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/invitations/{invitationId}/revoke:
+    post:
+      tags:
+        - Invitations
+      summary: Revoke an invitation (link stops working, pending messages cancelled)
+      operationId: post_v1_workspaces_workspaceId_events_eventId_functions_functionId_invitations_invitationId_revoke
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: invitationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `invitations:write`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Reason"
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/invitations/{invitationId}/restore:
+    post:
+      tags:
+        - Invitations
+      summary: Restore a revoked invitation
+      operationId: post_v1_workspaces_workspaceId_events_eventId_functions_functionId_invitations_invitationId_restore
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: invitationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `invitations:write`."
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/invitations/{invitationId}/rotate-token:
+    post:
+      tags:
+        - Invitations
+      summary: Invalidate the old link/QR and return a new link
+      operationId: post_v1_workspaces_workspaceId_events_eventId_functions_functionId_invitations_invitationId_rotate_token
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: invitationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `invitations:write`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Reason"
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/invitations/{invitationId}/link:
+    get:
+      tags:
+        - Invitations
+      summary: Personal RSVP link for sharing manually
+      operationId: get_v1_workspaces_workspaceId_events_eventId_functions_functionId_invitations_invitationId_link
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: invitationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `invitations:write`."
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/invitations/{invitationId}/history:
+    get:
+      tags:
+        - Invitations
+      summary: Append-only RSVP history
+      operationId: get_v1_workspaces_workspaceId_events_eventId_functions_functionId_invitations_invitationId_history
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: invitationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `guests:read`."
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/invitations/{invitationId}/response:
+    put:
+      tags:
+        - RSVP
+      summary: Organizer correction (reason required, audited)
+      operationId: put_v1_workspaces_workspaceId_events_eventId_functions_functionId_invitations_invitationId_response
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: invitationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `rsvp:override`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RsvpOverride"
+  /v1/public/rsvp/{token}:
+    get:
+      tags:
+        - Public RSVP
+      summary: Guest-facing invitation view (token = bearer secret)
+      operationId: get_v1_public_rsvp_token
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicRsvpView"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "410":
+          $ref: "#/components/responses/E410"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      security: []
+  /v1/public/rsvp/{token}/response:
+    put:
+      tags:
+        - Public RSVP
+      summary: Submit or edit an RSVP (optimistic version + idempotency)
+      operationId: put_v1_public_rsvp_token_response
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 16
+            maxLength: 128
+          description: Unique key per logical operation; retries with the same key and body replay the first result
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicRsvpView"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "410":
+          $ref: "#/components/responses/E410"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RsvpSubmit"
+      security: []
+  /v1/workspaces/{workspaceId}/events/{eventId}/dashboard:
+    get:
+      tags:
+        - Reporting
+      summary: RSVP dashboard for every visible function
+      operationId: get_v1_workspaces_workspaceId_events_eventId_dashboard
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `dashboard:read`."
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/dashboard:
+    get:
+      tags:
+        - Reporting
+      summary: RSVP dashboard for one function
+      operationId: get_v1_workspaces_workspaceId_events_eventId_functions_functionId_dashboard
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `dashboard:read`."
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/non-responders:
+    get:
+      tags:
+        - Reporting
+      summary: Invitations without a response (phones masked)
+      operationId: get_v1_workspaces_workspaceId_events_eventId_functions_functionId_non_responders
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+                  total:
+                    type: integer
+                required:
+                  - data
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `nonresponders:read`."
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/catering:
+    get:
+      tags:
+        - Catering
+      summary: Live catering estimate with assumptions and warnings
+      operationId: get_v1_workspaces_workspaceId_events_eventId_functions_functionId_catering
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `catering:read`."
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/catering/settings:
+    put:
+      tags:
+        - Catering
+      summary: Update assumptions (weights, buffer, rounding, prices)
+      operationId: put_v1_workspaces_workspaceId_events_eventId_functions_functionId_catering_settings
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `catering:write`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CateringSettings"
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/catering/snapshots:
+    get:
+      tags:
+        - Catering
+      summary: Saved estimates
+      operationId: get_v1_workspaces_workspaceId_events_eventId_functions_functionId_catering_snapshots
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `catering:read`."
+    post:
+      tags:
+        - Catering
+      summary: Save the current estimate
+      operationId: post_v1_workspaces_workspaceId_events_eventId_functions_functionId_catering_snapshots
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `catering:write`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Snapshot"
+  /v1/workspaces/{workspaceId}/events/{eventId}/exports:
+    post:
+      tags:
+        - Exports
+      summary: Create a CSV export (permission depends on kind)
+      operationId: post_v1_workspaces_workspaceId_events_eventId_exports
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `workspace:read + per-kind`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Export"
+  /v1/workspaces/{workspaceId}/exports/{exportId}/download:
+    get:
+      tags:
+        - Exports
+      summary: Download an export (expires after 7 days)
+      operationId: get_v1_workspaces_workspaceId_exports_exportId_download
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: exportId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: File download
+          content:
+            text/csv:
+              schema:
+                type: string
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `per-kind`."
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/campaigns:
+    get:
+      tags:
+        - Messaging
+      summary: List campaigns with delivery stats
+      operationId: get_v1_workspaces_workspaceId_events_eventId_functions_functionId_campaigns
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `campaigns:read`."
+    post:
+      tags:
+        - Messaging
+      summary: Create a draft campaign
+      operationId: post_v1_workspaces_workspaceId_events_eventId_functions_functionId_campaigns
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `campaigns:write`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCampaign"
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/campaigns/{campaignId}:
+    get:
+      tags:
+        - Messaging
+      summary: Campaign detail and status counts
+      operationId: get_v1_workspaces_workspaceId_events_eventId_functions_functionId_campaigns_campaignId
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: campaignId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `campaigns:read`."
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/campaigns/{campaignId}/preview:
+    post:
+      tags:
+        - Messaging
+      summary: "Dry run: eligible/excluded recipients, cost estimate, exact message text"
+      operationId: post_v1_workspaces_workspaceId_events_eventId_functions_functionId_campaigns_campaignId_preview
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: campaignId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `campaigns:read`."
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/campaigns/{campaignId}/schedule:
+    post:
+      tags:
+        - Messaging
+      summary: Schedule after confirming recipient count and estimated cost
+      operationId: post_v1_workspaces_workspaceId_events_eventId_functions_functionId_campaigns_campaignId_schedule
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: campaignId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 16
+            maxLength: 128
+          description: Unique key per logical operation; retries with the same key and body replay the first result
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `campaigns:send`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScheduleCampaign"
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/campaigns/{campaignId}/pause:
+    post:
+      tags:
+        - Messaging
+      summary: Pause sending
+      operationId: post_v1_workspaces_workspaceId_events_eventId_functions_functionId_campaigns_campaignId_pause
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: campaignId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `campaigns:send`."
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/campaigns/{campaignId}/resume:
+    post:
+      tags:
+        - Messaging
+      summary: Resume sending
+      operationId: post_v1_workspaces_workspaceId_events_eventId_functions_functionId_campaigns_campaignId_resume
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: campaignId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `campaigns:send`."
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/campaigns/{campaignId}/cancel:
+    post:
+      tags:
+        - Messaging
+      summary: Cancel all unsent messages
+      operationId: post_v1_workspaces_workspaceId_events_eventId_functions_functionId_campaigns_campaignId_cancel
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: campaignId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `campaigns:send`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Reason"
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/campaigns/{campaignId}/messages:
+    get:
+      tags:
+        - Messaging
+      summary: Per-recipient delivery status (contacts masked)
+      operationId: get_v1_workspaces_workspaceId_events_eventId_functions_functionId_campaigns_campaignId_messages
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: campaignId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+                  total:
+                    type: integer
+                required:
+                  - data
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `campaigns:read`."
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/campaigns/{campaignId}/messages/{messageId}/retry:
+    post:
+      tags:
+        - Messaging
+      summary: Replay a failed/unconfirmed message (audited)
+      operationId: post_v1_workspaces_workspaceId_events_eventId_functions_functionId_campaigns_campaignId_messages_messageId_retry
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: campaignId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `campaigns:send`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequiredReason"
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/campaigns/{campaignId}/messages/{messageId}/simulate:
+    post:
+      tags:
+        - Messaging
+      summary: "SANDBOX ONLY: simulate a provider callback (fake mode)"
+      operationId: post_v1_workspaces_workspaceId_events_eventId_functions_functionId_campaigns_campaignId_messages_messageId_simulate
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: campaignId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `messages:simulate`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Simulate"
+  /v1/workspaces/{workspaceId}/test-inbox:
+    get:
+      tags:
+        - Messaging
+      summary: "SANDBOX ONLY: messages captured by the fake provider"
+      operationId: get_v1_workspaces_workspaceId_test_inbox
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `messages:simulate`."
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/checkin/search:
+    get:
+      tags:
+        - Check-in
+      summary: Minimal guest lookup by name
+      operationId: get_v1_workspaces_workspaceId_events_eventId_functions_functionId_checkin_search
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `guests:lookup`."
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/checkin:
+    post:
+      tags:
+        - Check-in
+      summary: Check in by QR code or invitation id; duplicates return 200 {duplicate:true}
+      operationId: post_v1_workspaces_workspaceId_events_eventId_functions_functionId_checkin
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+            minLength: 16
+            maxLength: 128
+          description: Unique key per logical operation; retries with the same key and body replay the first result
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `checkin:write`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckIn"
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/checkin/{checkInId}/void:
+    post:
+      tags:
+        - Check-in
+      summary: Void a check-in with a reason (audited)
+      operationId: post_v1_workspaces_workspaceId_events_eventId_functions_functionId_checkin_checkInId_void
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: checkInId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `checkin:correct`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequiredReason"
+  /v1/workspaces/{workspaceId}/events/{eventId}/functions/{functionId}/checkin/reconciliation:
+    get:
+      tags:
+        - Check-in
+      summary: RSVP vs actual attendance (partial until function completed)
+      operationId: get_v1_workspaces_workspaceId_events_eventId_functions_functionId_checkin_reconciliation
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: functionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `checkin:read or dashboard:read`."
+  /v1/workspaces/{workspaceId}/suppressions:
+    get:
+      tags:
+        - Privacy
+      summary: Opt-out / suppression list (masked)
+      operationId: get_v1_workspaces_workspaceId_suppressions
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: includeLifted
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `suppression:read`."
+    post:
+      tags:
+        - Privacy
+      summary: Add a contact to the suppression list
+      operationId: post_v1_workspaces_workspaceId_suppressions
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `suppression:manage`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddSuppression"
+  /v1/workspaces/{workspaceId}/suppressions/{suppressionId}/lift:
+    post:
+      tags:
+        - Privacy
+      summary: Lift a suppression with a written reason (audited)
+      operationId: post_v1_workspaces_workspaceId_suppressions_suppressionId_lift
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: suppressionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `suppression:manage`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LiftSuppression"
+  /v1/workspaces/{workspaceId}/data-requests:
+    get:
+      tags:
+        - Privacy
+      summary: Export/deletion requests
+      operationId: get_v1_workspaces_workspaceId_data_requests
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `privacy:manage`."
+    post:
+      tags:
+        - Privacy
+      summary: Request a data export or a (grace-period) workspace deletion
+      operationId: post_v1_workspaces_workspaceId_data_requests
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `privacy:manage`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DataRequest"
+  /v1/workspaces/{workspaceId}/data-requests/{requestId}/cancel:
+    post:
+      tags:
+        - Privacy
+      summary: Cancel a scheduled deletion
+      operationId: post_v1_workspaces_workspaceId_data_requests_requestId_cancel
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/E400"
+        "401":
+          $ref: "#/components/responses/E401"
+        "403":
+          $ref: "#/components/responses/E403"
+        "404":
+          $ref: "#/components/responses/E404"
+        "409":
+          $ref: "#/components/responses/E409"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      description: "Required permission: `privacy:manage`."
+  /v1/webhooks/messaging/{provider}:
+    post:
+      tags:
+        - Webhooks
+      summary: Provider status callback (HMAC-signed raw body, replay window 5 min)
+      operationId: post_v1_webhooks_messaging_provider
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/E401"
+        "422":
+          $ref: "#/components/responses/E422"
+        "429":
+          $ref: "#/components/responses/E429"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookEvent"
+      security: []
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sc_session
+    csrfToken:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+      description: Value returned by login/register//v1/auth/me; required on POST/PUT/PATCH/DELETE
+  schemas:
+    Error:
+      type: object
+      additionalProperties: false
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            requestId:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+                required: []
+          required:
+            - code
+            - message
+            - requestId
+      required:
+        - error
+    Register:
+      type: object
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 10
+          maxLength: 128
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 120
+        workspaceName:
+          type: string
+          minLength: 1
+          maxLength: 160
+      required:
+        - email
+        - password
+        - displayName
+    Login:
+      type: object
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - email
+        - password
+    CreateWorkspace:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+      required:
+        - name
+    UpdateWorkspace:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        quietHoursStart:
+          type: integer
+          minimum: 0
+          maximum: 23
+        quietHoursEnd:
+          type: integer
+          minimum: 0
+          maximum: 23
+        messageSpendCapPaise:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+      required: []
+    Attestation:
+      type: object
+      additionalProperties: false
+      properties:
+        confirm:
+          type: boolean
+          enum:
+            - true
+      required:
+        - confirm
+    Role:
+      type: string
+      enum:
+        - owner
+        - organizer
+        - planner
+        - checkin_staff
+        - readonly
+        - caterer
+    AddMember:
+      type: object
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/Role"
+      required:
+        - email
+        - role
+    UpdateMember:
+      type: object
+      additionalProperties: false
+      properties:
+        role:
+          $ref: "#/components/schemas/Role"
+      required:
+        - role
+    Assignments:
+      type: object
+      additionalProperties: false
+      properties:
+        eventIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 200
+        functionIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 500
+      required: []
+    CreateEvent:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        timezone:
+          type: string
+          example: Asia/Kolkata
+          description: IANA time zone
+        startDate:
+          type:
+            - string
+            - "null"
+          format: date
+        endDate:
+          type:
+            - string
+            - "null"
+          format: date
+        hostName:
+          type:
+            - string
+            - "null"
+          maxLength: 160
+      required:
+        - name
+    UpdateEvent:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        timezone:
+          type: string
+        startDate:
+          type:
+            - string
+            - "null"
+          format: date
+        endDate:
+          type:
+            - string
+            - "null"
+          format: date
+        hostName:
+          type:
+            - string
+            - "null"
+        status:
+          type: string
+          enum:
+            - draft
+            - active
+            - completed
+            - cancelled
+            - archived
+      required: []
+    CreateFunction:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        startsAt:
+          type: string
+          description: Event-local "2027-02-10T17:00" or RFC 3339 instant with offset
+        venue:
+          type:
+            - string
+            - "null"
+        capacity:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+        rsvpDeadline:
+          type:
+            - string
+            - "null"
+        allowResponseEdits:
+          type: boolean
+          default: true
+        allowChildren:
+          type: boolean
+          default: true
+        status:
+          type: string
+          enum:
+            - draft
+            - active
+            - cancelled
+            - completed
+          default: active
+      required:
+        - name
+        - startsAt
+    CreateGuest:
+      type: object
+      additionalProperties: false
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 160
+        phone:
+          type:
+            - string
+            - "null"
+          description: Normalised to E.164; 10-digit Indian mobiles default to +91
+        email:
+          type:
+            - string
+            - "null"
+        preferredLanguage:
+          type: string
+          enum:
+            - en
+            - hi
+        groupId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        groupLabel:
+          type: string
+          minLength: 1
+          maxLength: 120
+        tags:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
+          maxItems: 10
+        allowDuplicate:
+          type: boolean
+          default: false
+        invitations:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              functionId:
+                type: string
+                format: uuid
+              partySize:
+                type: integer
+                minimum: 1
+                maximum: 50
+            required:
+              - functionId
+      required:
+        - displayName
+    UpdateGuest:
+      type: object
+      additionalProperties: false
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 160
+        phone:
+          type:
+            - string
+            - "null"
+        email:
+          type:
+            - string
+            - "null"
+        preferredLanguage:
+          type: string
+          enum:
+            - en
+            - hi
+        groupId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        groupLabel:
+          type: string
+          minLength: 1
+          maxLength: 120
+        tags:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
+      required: []
+    Group:
+      type: object
+      additionalProperties: false
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 120
+      required:
+        - label
+    Consent:
+      type: object
+      additionalProperties: false
+      properties:
+        guestIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+          maxItems: 1000
+        channel:
+          type: string
+          enum:
+            - whatsapp
+            - sms
+            - email
+        status:
+          type: string
+          enum:
+            - granted
+            - revoked
+        basis:
+          type: string
+          enum:
+            - organizer_attestation
+            - guest_opt_in
+        evidenceNote:
+          type: string
+          minLength: 3
+          maxLength: 500
+      required:
+        - guestIds
+        - channel
+        - basis
+        - evidenceNote
+    ImportPreview:
+      type: object
+      additionalProperties: false
+      properties:
+        csv:
+          type: string
+          description: CSV text, max ~900 KB / 5000 rows
+        filename:
+          type: string
+        mapping:
+          type: object
+          additionalProperties: false
+          properties:
+            name:
+              type: string
+            phone:
+              type: string
+            email:
+              type: string
+            language:
+              type: string
+            group:
+              type: string
+            functions:
+              type: string
+            partySize:
+              type: string
+            tags:
+              type: string
+          required: []
+      required:
+        - csv
+    ImportCommit:
+      type: object
+      additionalProperties: false
+      properties:
+        includeDuplicateRows:
+          type: array
+          items:
+            type: integer
+            minimum: 2
+      required: []
+    CreateInvitations:
+      type: object
+      additionalProperties: false
+      properties:
+        invites:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              guestId:
+                type: string
+                format: uuid
+              partySize:
+                type: integer
+                minimum: 1
+                maximum: 50
+            required:
+              - guestId
+      required:
+        - invites
+    UpdateInvitation:
+      type: object
+      additionalProperties: false
+      properties:
+        partySize:
+          type: integer
+          minimum: 1
+          maximum: 50
+      required:
+        - partySize
+    Reason:
+      type: object
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 300
+      required: []
+    RsvpSubmit:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum:
+            - yes
+            - no
+            - maybe
+        adultCount:
+          type: integer
+          minimum: 0
+          maximum: 100
+        childCount:
+          type: integer
+          minimum: 0
+          maximum: 100
+        version:
+          type: integer
+          minimum: 0
+          description: 0 for a first response, otherwise the version last seen
+      required:
+        - status
+        - version
+    RsvpOverride:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum:
+            - yes
+            - no
+            - maybe
+        adultCount:
+          type: integer
+          minimum: 0
+          maximum: 100
+        childCount:
+          type: integer
+          minimum: 0
+          maximum: 100
+        version:
+          type: integer
+          minimum: 0
+          maximum: 1000000000
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 300
+        allowExceedPartySize:
+          type: boolean
+      required:
+        - status
+        - reason
+    PublicRsvpView:
+      type: object
+      additionalProperties: false
+      properties:
+        guestName:
+          type: string
+        language:
+          type: string
+          enum:
+            - en
+            - hi
+        event:
+          type: object
+          additionalProperties: true
+        function:
+          type: object
+          additionalProperties: true
+        partySizeMax:
+          type: integer
+        allowChildren:
+          type: boolean
+        deadline:
+          type:
+            - string
+            - "null"
+        state:
+          type: string
+          enum:
+            - open
+            - locked
+            - closed_deadline
+            - closed_cancelled
+            - closed_completed
+        response:
+          type:
+            - object
+            - "null"
+          additionalProperties: true
+        checkinCode:
+          type:
+            - string
+            - "null"
+      required: []
+    CateringSettings:
+      type: object
+      additionalProperties: false
+      properties:
+        maybeWeightPercent:
+          type: number
+          minimum: 0
+          maximum: 100
+        pendingWeightPercent:
+          type: number
+          minimum: 0
+          maximum: 100
+        bufferPercent:
+          type: number
+          minimum: 0
+          maximum: 100
+        mealRounding:
+          type: integer
+          minimum: 1
+          maximum: 100
+        adultPricePaise:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+        childPricePaise:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+      required: []
+    Snapshot:
+      type: object
+      additionalProperties: false
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 120
+      required: []
+    Export:
+      type: object
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          enum:
+            - guests
+            - rsvps
+            - catering
+            - checkins
+        functionId:
+          type: string
+          format: uuid
+      required:
+        - kind
+    CreateCampaign:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        kind:
+          type: string
+          enum:
+            - invitation
+            - reminder
+        channel:
+          type: string
+          enum:
+            - whatsapp
+            - sms
+            - email
+        templateKey:
+          type: string
+        audience:
+          type: string
+          enum:
+            - all_invited
+            - not_responded
+            - maybe
+            - not_yet_messaged
+      required:
+        - name
+        - kind
+    ScheduleCampaign:
+      type: object
+      additionalProperties: false
+      properties:
+        scheduledAt:
+          type: string
+        confirmRecipientCount:
+          type: integer
+          minimum: 0
+          maximum: 1000000000
+        confirmEstimatedCostPaise:
+          type: integer
+          minimum: 0
+          maximum: 1000000000000
+      required:
+        - confirmRecipientCount
+        - confirmEstimatedCostPaise
+    RequiredReason:
+      type: object
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 300
+      required:
+        - reason
+    Simulate:
+      type: object
+      additionalProperties: false
+      properties:
+        event:
+          type: string
+          enum:
+            - delivered
+            - read
+            - failed
+            - opted_out
+      required:
+        - event
+    CheckIn:
+      type: object
+      additionalProperties: false
+      properties:
+        invitationId:
+          type: string
+          format: uuid
+        code:
+          type: string
+          pattern: ^[A-Z2-9]{12}$
+        adults:
+          type: integer
+          minimum: 0
+          maximum: 100
+        children:
+          type: integer
+          minimum: 0
+          maximum: 100
+        allowUnconfirmed:
+          type: boolean
+        note:
+          type: string
+          minLength: 1
+          maxLength: 300
+      required: []
+    AddSuppression:
+      type: object
+      additionalProperties: false
+      properties:
+        channel:
+          type: string
+          enum:
+            - whatsapp
+            - sms
+            - email
+        contact:
+          type: string
+          minLength: 3
+          maxLength: 254
+        reason:
+          type: string
+          enum:
+            - opted_out
+            - organizer_added
+            - bounce
+            - complaint
+      required:
+        - channel
+        - contact
+    LiftSuppression:
+      type: object
+      additionalProperties: false
+      properties:
+        liftReason:
+          type: string
+          minLength: 3
+          maxLength: 300
+      required:
+        - liftReason
+    DataRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          enum:
+            - export
+            - deletion
+        confirmWorkspaceName:
+          type: string
+      required:
+        - type
+    WebhookEvent:
+      type: object
+      additionalProperties: false
+      properties:
+        eventId:
+          type: string
+          minLength: 8
+          maxLength: 100
+        type:
+          type: string
+          enum:
+            - submitted
+            - delivered
+            - read
+            - failed
+            - opted_out
+        providerMessageId:
+          type: string
+          minLength: 3
+          maxLength: 200
+        occurredAt:
+          type: string
+          format: date-time
+        errorCode:
+          type: string
+      required:
+        - eventId
+        - type
+        - providerMessageId
+  responses:
+    E400:
+      description: Malformed request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    E401:
+      description: Not authenticated
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    E403:
+      description: Forbidden (role, CSRF or origin)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    E404:
+      description: Not found (also used for other tenants' resources)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    E409:
+      description: Conflict (version, duplicate, state)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    E410:
+      description: Gone (revoked/expired)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    E413:
+      description: Body too large
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    E422:
+      description: Validation or business rule failure
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    E429:
+      description: Rate limited
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"

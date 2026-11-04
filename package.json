@@ -1,0 +1,44 @@
+{
+  "name": "shaadicount",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ShaadiCount - function-specific RSVP, reminders, catering estimates and check-in for Indian weddings (MVP)",
+  "engines": {
+    "node": ">=22.12.0 <23",
+    "npm": ">=10"
+  },
+  "packageManager": "npm@10.9.7",
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "install:all": "npm ci",
+    "dev": "concurrently -n api,worker,web -c blue,magenta,green \"npm run dev -w @shaadicount/api\" \"npm run dev:worker -w @shaadicount/api\" \"npm run dev -w @shaadicount/web\"",
+    "db:up": "docker compose up -d postgres",
+    "db:migrate": "npm run db:migrate -w @shaadicount/api",
+    "db:seed": "npm run db:seed -w @shaadicount/api",
+    "db:reset": "npm run db:reset -w @shaadicount/api",
+    "lint": "npm run lint -w @shaadicount/api && npm run lint -w @shaadicount/web",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "npm run typecheck -w @shaadicount/api && npm run typecheck -w @shaadicount/web",
+    "test:unit": "npm run test:unit -w @shaadicount/api && npm run test -w @shaadicount/web",
+    "test:integration": "npm run test:integration -w @shaadicount/api",
+    "test:e2e": "npm run test:e2e -w @shaadicount/api",
+    "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
+    "build": "npm run build -w @shaadicount/api && npm run build -w @shaadicount/web",
+    "check:secrets": "bash scripts/check-secrets.sh",
+    "test:smoke": "npm run test:smoke -w @shaadicount/web"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0",
+    "prettier": "^3.6.2"
+  },
+  "overrides": {
+    "multer": "^2.5.0",
+    "@nestjs/swagger": {
+      "js-yaml": "^5.5.0"
+    }
+  }
+}
