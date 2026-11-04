@@ -84,7 +84,7 @@ export class GuestsService {
 
   // ---------- groups ----------
   async listGroups(ctx: RequestCtx, eventId: string) {
-    await this.scope.event(ctx, eventId);
+    await this.scope.eventWide(ctx, eventId);
     const rows = await this.db.query<any>(
       `SELECT g.id, g.label, (SELECT count(*) FROM guests x WHERE x.guest_group_id=g.id AND x.deleted_at IS NULL)::int AS guest_count
          FROM guest_groups g WHERE g.event_id=$1 AND g.workspace_id=$2 AND g.deleted_at IS NULL ORDER BY lower(g.label)`,
@@ -98,16 +98,23 @@ export class GuestsService {
       [eventId, ctx.workspace!.id, label],
     );
     if (ex) return ex.id;
-    const g = await q.one<{ id: string }>(`INSERT INTO guest_groups (workspace_id,event_id,label) VALUES ($1,$2,$3) RETURNING id`, [
-      ctx.workspace!.id,
-      eventId,
-      label,
-    ]);
-    return g!.id;
+    // Concurrent requests may race on the same new label. ON CONFLICT DO NOTHING (any unique index) makes the loser
+    // wait for the winner's commit and then re-read the winner's row instead of failing with a 500.
+    const g = await q.one<{ id: string }>(
+      `INSERT INTO guest_groups (workspace_id,event_id,label) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING RETURNING id`,
+      [ctx.workspace!.id, eventId, label],
+    );
+    if (g) return g.id;
+    const again = await q.one<{ id: string }>(
+      `SELECT id FROM guest_groups WHERE event_id=$1 AND workspace_id=$2 AND lower(label)=lower($3) AND deleted_at IS NULL`,
+      [eventId, ctx.workspace!.id, label],
+    );
+    if (!again) throw new Error('guest group upsert failed');
+    return again.id;
   }
   async createGroup(ctx: RequestCtx, eventId: string, label: string) {
     return this.db.tx(async (q) => {
-      await this.scope.event(ctx, eventId, q);
+      await this.scope.eventWide(ctx, eventId, q);
       const id = await this.groupInTx(q, ctx, eventId, label);
       await this.audit.log(q, ctx, {
         workspaceId: ctx.workspace!.id,
@@ -120,7 +127,7 @@ export class GuestsService {
   }
   async deleteGroup(ctx: RequestCtx, eventId: string, groupId: string) {
     await this.db.tx(async (q) => {
-      await this.scope.event(ctx, eventId, q);
+      await this.scope.eventWide(ctx, eventId, q);
       const g = await q.one(
         `UPDATE guest_groups SET deleted_at=now() WHERE id=$1 AND event_id=$2 AND workspace_id=$3 AND deleted_at IS NULL RETURNING id`,
         [groupId, eventId, ctx.workspace!.id],
@@ -154,7 +161,7 @@ export class GuestsService {
   }
 
   async list(ctx: RequestCtx, eventId: string, f: z.infer<typeof listGuestsSchema>) {
-    await this.scope.event(ctx, eventId);
+    await this.scope.eventWide(ctx, eventId);
     const params: unknown[] = [ctx.workspace!.id, eventId];
     let where = 'g.workspace_id=$1 AND g.event_id=$2 AND g.deleted_at IS NULL';
     if (f.search) {
@@ -179,7 +186,7 @@ export class GuestsService {
   }
 
   async get(ctx: RequestCtx, eventId: string, guestId: string, reveal: boolean) {
-    await this.scope.event(ctx, eventId);
+    await this.scope.eventWide(ctx, eventId);
     const g = await this.db.one<any>(
       `SELECT g.*, gg.label AS group_label FROM guests g LEFT JOIN guest_groups gg ON gg.id=g.guest_group_id WHERE g.id=$1 AND g.event_id=$2 AND g.workspace_id=$3 AND g.deleted_at IS NULL`,
       [guestId, eventId, ctx.workspace!.id],
@@ -250,7 +257,7 @@ export class GuestsService {
   async create(ctx: RequestCtx, eventId: string, i: z.infer<typeof guestSchema>) {
     const { phone, email } = this.parseContacts(i);
     return this.db.tx(async (q) => {
-      await this.scope.event(ctx, eventId, q);
+      await this.scope.eventWide(ctx, eventId, q);
       let groupId: string | null = null;
       if (i.groupId) {
         const g = await q.one(`SELECT id FROM guest_groups WHERE id=$1 AND event_id=$2 AND workspace_id=$3 AND deleted_at IS NULL`, [
@@ -288,7 +295,7 @@ export class GuestsService {
 
   async update(ctx: RequestCtx, eventId: string, guestId: string, i: z.infer<typeof updateGuestSchema>) {
     return this.db.tx(async (q) => {
-      await this.scope.event(ctx, eventId, q);
+      await this.scope.eventWide(ctx, eventId, q);
       const cur = await q.one<any>(
         `SELECT * FROM guests WHERE id=$1 AND event_id=$2 AND workspace_id=$3 AND deleted_at IS NULL FOR UPDATE`,
         [guestId, eventId, ctx.workspace!.id],
@@ -339,7 +346,7 @@ export class GuestsService {
    */
   async remove(ctx: RequestCtx, eventId: string, guestId: string) {
     await this.db.tx(async (q) => {
-      await this.scope.event(ctx, eventId, q);
+      await this.scope.eventWide(ctx, eventId, q);
       const g = await q.one(
         `UPDATE guests SET display_name='Deleted guest', phone_e164=NULL, email=NULL, tags='{}', deleted_at=now(), anonymized_at=now(), updated_at=now()
                               WHERE id=$1 AND event_id=$2 AND workspace_id=$3 AND deleted_at IS NULL RETURNING id`,
@@ -362,7 +369,7 @@ export class GuestsService {
   // ---------- consent evidence ----------
   async recordConsent(ctx: RequestCtx, eventId: string, i: z.infer<typeof consentSchema>) {
     return this.db.tx(async (q) => {
-      await this.scope.event(ctx, eventId, q);
+      await this.scope.eventWide(ctx, eventId, q);
       const ids = [...new Set(i.guestIds)];
       const ok = await q.query<{ id: string }>(
         `SELECT id FROM guests WHERE id = ANY($1::uuid[]) AND workspace_id=$2 AND event_id=$3 AND deleted_at IS NULL`,
@@ -435,7 +442,7 @@ export class GuestsService {
 
   async importPreview(ctx: RequestCtx, eventId: string, i: z.infer<typeof importPreviewSchema>) {
     return this.db.tx(async (q) => {
-      await this.scope.event(ctx, eventId, q);
+      await this.scope.eventWide(ctx, eventId, q);
       const a = await this.analyse(ctx, eventId, i.csv, i.mapping, q);
       const summary = {
         totalRows: a.rows.length,
@@ -494,7 +501,7 @@ export class GuestsService {
   }
 
   async importGet(ctx: RequestCtx, eventId: string, importId: string) {
-    await this.scope.event(ctx, eventId);
+    await this.scope.eventWide(ctx, eventId);
     const j = await this.db.one<any>(
       `SELECT id, status, summary, result, preview, created_at, committed_at FROM import_jobs WHERE id=$1 AND event_id=$2 AND workspace_id=$3`,
       [importId, eventId, ctx.workspace!.id],
@@ -522,7 +529,7 @@ export class GuestsService {
     return this.idem.run(
       { scope: `${ctx.workspace!.id}|${ctx.user!.id}`, operation: `imports.commit:${importId}`, key, required: true, request: input },
       async (q) => {
-        await this.scope.event(ctx, eventId, q);
+        await this.scope.eventWide(ctx, eventId, q);
         const job = await q.one<any>(`SELECT * FROM import_jobs WHERE id=$1 AND event_id=$2 AND workspace_id=$3 FOR UPDATE`, [
           importId,
           eventId,

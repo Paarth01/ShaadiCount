@@ -62,6 +62,23 @@ export class ScopeService {
     return ev;
   }
 
+  /**
+   * Event-wide access: guests, groups, consents and imports belong to the whole event, not to one function.
+   * Scoped roles therefore need an assignment with function_id IS NULL (assigned to the event as a whole).
+   * A planner assigned only to specific functions gets 404 here and must use the function-level routes.
+   */
+  async eventWide(ctx: RequestCtx, eventId: string, q: Q = this.db): Promise<EventRow> {
+    const ev = await this.event(ctx, eventId, q);
+    if (this.isScoped(ctx)) {
+      const a = await q.one(
+        `SELECT 1 FROM member_assignments WHERE workspace_id=$1 AND user_id=$2 AND event_id=$3 AND function_id IS NULL LIMIT 1`,
+        [ctx.workspace!.id, ctx.user!.id, eventId],
+      );
+      if (!a) throw notFound('Event');
+    }
+    return ev;
+  }
+
   async fn(ctx: RequestCtx, eventId: string, functionId: string, q: Q = this.db): Promise<{ event: EventRow; fn: FunctionRow }> {
     const event = await this.event(ctx, eventId, q);
     const fn = await q.one<FunctionRow>(`SELECT * FROM event_functions WHERE id=$1 AND event_id=$2 AND workspace_id=$3`, [
