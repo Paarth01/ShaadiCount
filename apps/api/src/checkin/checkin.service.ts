@@ -94,11 +94,17 @@ export class CheckinService {
         if (!inv) throw notFound('Invitation');
         if (inv.revoked_at) throw new ApiError(409, 'INVITATION_REVOKED', 'This invitation has been revoked');
         await q.query(`SELECT 1 FROM event_invitations WHERE id=$1 FOR UPDATE`, [inv.id]);
+        // Door staff must be able to match the person in front of them to the scan result.
+        const guest = await q.one<{ display_name: string }>(`SELECT display_name FROM guests WHERE id=$1 AND workspace_id=$2`, [
+          inv.guest_id,
+          ctx.workspace!.id,
+        ]);
+        const who = { guestName: guest?.display_name ?? null, partySize: inv.invited_party_size };
         const existing = await q.one<any>(`SELECT * FROM check_ins WHERE invitation_id=$1 AND event_function_id=$2 AND voided_at IS NULL`, [
           inv.id,
           functionId,
         ]);
-        if (existing) return { status: 200, body: { duplicate: true, checkIn: dto(existing) } };
+        if (existing) return { status: 200, body: { duplicate: true, checkIn: dto(existing), ...who } };
 
         const r = await q.one<any>(`SELECT status, adult_count, child_count FROM rsvp_responses WHERE invitation_id=$1`, [inv.id]);
         let adults = i.adults,
@@ -114,7 +120,7 @@ export class CheckinService {
               'This guest has not confirmed Yes. Confirm to check them in anyway.',
               [],
               {},
-              { rsvpStatus: r?.status ?? null },
+              { rsvpStatus: r?.status ?? null, invitationId: inv.id, ...who },
             );
           if (adults === undefined && children === undefined) throw unprocessable('COUNT_REQUIRED', 'Enter how many people arrived');
           adults ??= 0;
@@ -139,7 +145,7 @@ export class CheckinService {
             metadata: { method: c.method, people: adults! + children!, unconfirmed: r?.status !== 'yes' },
           });
           await this.analytics.track(q, 'checkin_recorded', { workspaceId: ctx.workspace!.id, eventId, props: { method: c.method } });
-          return { status: 201, body: { duplicate: false, checkIn: dto(c) } };
+          return { status: 201, body: { duplicate: false, checkIn: dto(c), ...who } };
         } catch (e) {
           if (isUniqueViolation(e))
             throw new ApiError(409, 'CHECKIN_RACE', 'Another device just checked this guest in. Refresh and try again.');

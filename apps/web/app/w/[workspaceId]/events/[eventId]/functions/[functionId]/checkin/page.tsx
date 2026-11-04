@@ -63,20 +63,22 @@ export default function CheckInPage({ params }: { params: Promise<{ workspaceId:
           r.duplicate
             ? {
                 tone: 'warn',
-                title: 'Already checked in',
+                title: `Already checked in${label || r.guestName ? `: ${label ?? r.guestName}` : ''}`,
                 detail: `${r.checkIn.adults + r.checkIn.children} people were checked in earlier.`,
               }
             : {
                 tone: 'ok',
-                title: `Checked in${label ? `: ${label}` : ''}`,
+                title: `Checked in${label || r.guestName ? `: ${label ?? r.guestName}` : ''}`,
                 detail: `${r.checkIn.adults} adults, ${r.checkIn.children} children`,
               },
         );
         void refresh();
       } catch (e) {
         const err = e as ApiError;
-        if (err.code === 'RSVP_NOT_CONFIRMED' && body.invitationId) {
-          setConfirm({ ...body, label });
+        const invitationId = (body.invitationId as string | undefined) ?? (err.extra.invitationId as string | undefined);
+        if (err.code === 'RSVP_NOT_CONFIRMED' && invitationId) {
+          // Works for QR scans too: the server returns who the code belongs to so staff can still confirm manually.
+          setConfirm({ invitationId, label: label ?? err.extra.guestName, partySize: err.extra.partySize });
         } else
           setResult({
             tone: 'bad',
@@ -228,7 +230,7 @@ export default function CheckInPage({ params }: { params: Promise<{ workspaceId:
       {confirm && (
         <UnconfirmedModal
           ctx={confirm}
-          max={results.find((r) => r.invitationId === confirm.invitationId)?.partySize ?? 1}
+          max={confirm.partySize ?? results.find((r) => r.invitationId === confirm.invitationId)?.partySize ?? 1}
           onClose={() => setConfirm(null)}
           onGo={(adults, children) => {
             const c = confirm;
