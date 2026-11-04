@@ -5,6 +5,9 @@ import { TokensService } from './invitations/tokens.service';
 import { renderTemplate, getTemplate, TEMPLATES } from './messaging/templates';
 import { ROLES, ROLE_PERMISSIONS, can } from './auth/permissions';
 import { loadConfig } from './config/config';
+import { weakPasswordReason } from './auth/password-policy';
+import { isRealCalendarDate } from './events/events.service';
+import { csvCell, csvUncell } from './common/csv';
 
 describe('webhook status machine', () => {
   it('only moves delivery states forward', () => {
@@ -158,6 +161,55 @@ describe('configuration', () => {
   });
   it('stores sandbox message bodies only outside production by default', () => {
     expect(loadConfig(base).FAKE_PROVIDER_STORE_BODIES).toBe(true);
-    expect(loadConfig({ ...base, NODE_ENV: 'production' }).FAKE_PROVIDER_STORE_BODIES).toBe(false);
+    expect(loadConfig({ ...base, NODE_ENV: 'production', TRUST_PROXY: '1' }).FAKE_PROVIDER_STORE_BODIES).toBe(false);
+  });
+  it('requires an explicit TRUST_PROXY in production (wrong value silently breaks rate limiting)', () => {
+    expect(() => loadConfig({ ...base, NODE_ENV: 'production' })).toThrow(/TRUST_PROXY must be set explicitly/);
+    expect(loadConfig({ ...base, NODE_ENV: 'production', TRUST_PROXY: '2' }).TRUST_PROXY).toBe(2);
+    expect(loadConfig({ ...base, NODE_ENV: 'production', TRUST_PROXY: '0' }).TRUST_PROXY).toBe(0);
+    expect(() => loadConfig({ ...base, NODE_ENV: 'production', TRUST_PROXY: '' })).toThrow(/TRUST_PROXY must be set explicitly/);
+    expect(loadConfig(base).TRUST_PROXY).toBe(0);
+  });
+  it('serves API docs outside production only, unless explicitly enabled', () => {
+    expect(loadConfig(base).DOCS_ENABLED).toBe(true);
+    expect(loadConfig({ ...base, NODE_ENV: 'production', TRUST_PROXY: '1' }).DOCS_ENABLED).toBe(false);
+    expect(loadConfig({ ...base, NODE_ENV: 'production', TRUST_PROXY: '1', DOCS_ENABLED: 'true' }).DOCS_ENABLED).toBe(true);
+  });
+  it('rejects reusing one secret for CSRF and pseudonymisation in production', () => {
+    expect(() => loadConfig({ ...base, NODE_ENV: 'production', TRUST_PROXY: '1', PSEUDONYM_SECRET: 'a'.repeat(32) })).toThrow(
+      /must be different/,
+    );
+  });
+});
+
+describe('password policy', () => {
+  it('rejects the passwords attackers try first', () => {
+    for (const pw of ['aaaaaaaaaa', 'abababababab', '1234567890', 'qwertyuiop', 'Password123!', 'shaadicount2027', '9876543210']) {
+      expect(weakPasswordReason(pw, 'someone@example.com')).not.toBeNull();
+    }
+    expect(weakPasswordReason('riya.priya.2027', 'riya.priya@example.com')).not.toBeNull();
+  });
+  it('accepts reasonable passphrases', () => {
+    expect(weakPasswordReason('Zx9!kQ-long-pass-77', 'a@example.com')).toBeNull();
+    expect(weakPasswordReason('mango-river-lantern-42', 'a@example.com')).toBeNull();
+  });
+});
+
+describe('calendar date validation', () => {
+  it('accepts real dates and rejects impossible ones', () => {
+    expect(isRealCalendarDate('2027-02-28')).toBe(true);
+    expect(isRealCalendarDate('2028-02-29')).toBe(true);
+    for (const d of ['2027-02-29', '2026-02-31', '2026-13-45', '2026-00-10', '0000-01-01', 'abcd-ef-gh'])
+      expect(isRealCalendarDate(d)).toBe(false);
+  });
+});
+
+describe('csv formula guard round trip', () => {
+  it('exports phone numbers guarded and imports them back unchanged', () => {
+    expect(csvCell('+919876543210')).toBe("'+919876543210");
+    expect(csvUncell(csvCell('+919876543210'))).toBe('+919876543210');
+    expect(csvUncell(csvCell('=SUM(A1)'))).toBe('=SUM(A1)');
+    expect(csvUncell("O'Brien")).toBe("O'Brien");
+    expect(csvUncell("'plain")).toBe("'plain");
   });
 });
