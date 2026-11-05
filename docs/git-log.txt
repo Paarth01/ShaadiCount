@@ -1,0 +1,450 @@
+# git log snapshot for ShaadiCount
+# Covers every commit up to and including bf77a48 (this file's own commit is added right after it).
+# Generated with: git log --stat --date=iso
+
+commit bf77a4871b932dc9dad7ce5492a55d348cabf3fb
+Author: Paarth <Paarth01@users.noreply.github.com>
+Date:   2026-11-04 21:53:31 +0000
+
+    docs: add the pre-fix audit report and link the security documents from the README
+
+The report is kept as the unchanged record of what the audit found; each finding's
+resolution is in docs/security/audit-fixes-2026-11.md.
+
+----------------------------------------------------------------------
+
+ README.md                             |  14 ++
+ docs/security/audit-report-2026-11.md | 253 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 267 insertions(+)
+commit da0785886b9c18e0f8db9a94f48b936e0c140aa7
+Author: Paarth <Paarth01@users.noreply.github.com>
+Date:   2026-11-04 21:48:45 +0000
+
+    docs: record the audit fixes and update deployment, limitations and API contract
+
+Add dependabot configuration, a change record (docs/security/audit-fixes-2026-11.md),
+TRUST_PROXY/DOCS_ENABLED/suppression-secret guidance, the remaining known limitations,
+the new check-in response fields in the OpenAPI contract, and a README note on /docs.
+
+----------------------------------------------------------------------
+
+ .github/dependabot.yml               | 15 +++++++++++++++
+ README.md                            |  2 +-
+ api/openapi.yaml                     |  2 +-
+ docs/devops/deployment.md            |  4 ++--
+ docs/security/audit-fixes-2026-11.md | 31 +++++++++++++++++++++++++++++++
+ docs/security/known-limitations.md   | 11 ++++++++---
+ 6 files changed, 58 insertions(+), 7 deletions(-)
+commit e6b34a0d5c38feae38e90eba92e30b28641521c8
+Author: Paarth <Paarth01@users.noreply.github.com>
+Date:   2026-11-04 21:48:41 +0000
+
+    test: regression tests for every confirmed audit finding
+
+Adds apps/api/test/audit-fixes.int.spec.ts (scoped planners, dates, group race,
+CSV round trip, weak passwords, audit flood, check-in, pool, per-client rate
+limits, per-account ceiling, spend-cap race, poison messages, cancelled
+messages), config/password/date/CSV unit tests, and web tests for the session
+redirect helpers. Test env gets the two new rate-limit variables.
+
+----------------------------------------------------------------------
+
+ apps/api/src/domain.spec.ts           |  54 +++++-
+ apps/api/test/audit-fixes.int.spec.ts | 325 ++++++++++++++++++++++++++++++++++
+ apps/api/test/env.setup.ts            |   2 +
+ apps/web/test/api-session.test.ts     |  34 ++++
+ 4 files changed, 414 insertions(+), 1 deletion(-)
+commit 627253af1fad4f49f25896d6498987888c34584a
+Author: Paarth <Paarth01@users.noreply.github.com>
+Date:   2026-11-04 21:48:41 +0000
+
+    build(deps): fix the npm audit gate and remove an unused dependency (D1, D2)
+
+postcss ^8.5.32 is now a direct web dependency and an override forces Next to use
+it (the bundled 8.4.31 was flagged and failed the CI 'npm audit --audit-level=high'
+step). Remove the unused js-yaml dependency and its invalid override.
+npm audit --omit=dev: 0 vulnerabilities; next build passes.
+
+----------------------------------------------------------------------
+
+ apps/api/package.json |  1 -
+ apps/web/package.json |  1 +
+ package-lock.json     | 84 ++++++---------------------------------------------
+ package.json          |  4 +--
+ 4 files changed, 12 insertions(+), 78 deletions(-)
+commit 031743b3397a1e8a7aa7065389f657c7722dee43
+Author: Paarth <Paarth01@users.noreply.github.com>
+Date:   2026-11-04 21:48:32 +0000
+
+    fix(security): rate limiting per real client, password policy, config hardening (S1, S3, S4, S5, S7, S9)
+
+- S1: TRUST_PROXY must be set explicitly in production (empty counts as unset).
+  Behind the web proxy every client previously shared one rate-limit bucket, so
+  one client could block all guest RSVPs and logins. Log a one-time
+  trust_proxy_misconfigured warning. Public per-IP default 60 -> 120/min.
+- S3: login limiter keyed per email + client IP, with a higher email-only
+  ceiling, so a third party cannot lock a victim out.
+- S4: per-user request ceiling on authenticated routes; throttle audit rows for
+  denied access (probing random workspace ids flooded the audit log).
+- S5: password policy (distinct characters, repetition, sequences, common words).
+- S7: optional SUPPRESSION_HASH_SECRET, falling back to PSEUDONYM_SECRET.
+- S9: DOCS_ENABLED; API docs are off by default in production.
+- Refuse to reuse one secret for CSRF and pseudonymisation in production.
+
+----------------------------------------------------------------------
+
+ .env.example                               | 10 +++++++
+ apps/api/src/app.setup.ts                  | 13 +++++++++
+ apps/api/src/auth/access.guard.ts          | 27 +++++++++++++-----
+ apps/api/src/auth/auth.service.ts          | 25 ++++++-----------
+ apps/api/src/auth/password-policy.ts       | 45 ++++++++++++++++++++++++++++++
+ apps/api/src/config/config.ts              | 36 +++++++++++++++++++++---
+ apps/api/src/docs.ts                       |  4 +--
+ apps/api/src/guests/suppression.service.ts |  2 +-
+ apps/api/src/main.ts                       |  2 +-
+ 9 files changed, 132 insertions(+), 32 deletions(-)
+commit a171ef2eb686f268bf826e9f5376231e296fa73e
+Author: Paarth <Paarth01@users.noreply.github.com>
+Date:   2026-11-04 21:48:10 +0000
+
+    fix(web): handle expired sessions with a redirect to login (B4)
+
+Redirect to /login?expired=1 on a 401 from the app, never from login, register,
+the public RSVP page or auth/public endpoints. The post-login 'next' target is
+restricted to same-origin paths to avoid an open redirect.
+
+----------------------------------------------------------------------
+
+ apps/web/app/login/page.tsx | 14 +++++++++++---
+ apps/web/lib/api.ts         | 17 +++++++++++++++++
+ 2 files changed, 28 insertions(+), 3 deletions(-)
+commit 527b11baf889a758c6ed8d09c47107626bc45a0b
+Author: Paarth <Paarth01@users.noreply.github.com>
+Date:   2026-11-04 21:47:51 +0000
+
+    fix(checkin): tell door staff who was scanned and allow manual confirmation after a scan (B5)
+
+The check-in response now includes guestName and partySize. The 409
+RSVP_NOT_CONFIRMED error carries invitationId/guestName/partySize so the UI can
+offer the manual confirmation for QR scans, not only for name search.
+
+----------------------------------------------------------------------
+
+ apps/api/src/checkin/checkin.service.ts                      | 12 +++++++++---
+ .../events/[eventId]/functions/[functionId]/checkin/page.tsx | 12 +++++++-----
+ 2 files changed, 16 insertions(+), 8 deletions(-)
+commit e283f3cbe091a95f0816d4efc13f6273f704402c
+Author: Paarth <Paarth01@users.noreply.github.com>
+Date:   2026-11-04 21:47:45 +0000
+
+    perf(db): add missing indexes and prune operational tables (P1)
+
+Migration 0005 indexes message_attempts(workspace_id, started_at) (previously
+scanned per message sent), scheduled_messages(workspace_id, status) and the
+retention columns. Retention now deletes published outbox rows, processed
+webhook events and old attempts. audit_logs are intentionally kept.
+
+----------------------------------------------------------------------
+
+ apps/api/src/privacy/privacy.service.ts      | 16 ++++++++++++++++
+ db/migrations/0005_indexes_and_retention.sql | 12 ++++++++++++
+ 2 files changed, 28 insertions(+)
+commit 445b224f8347c93e57da59795a9113f074ca832b
+Author: Paarth <Paarth01@users.noreply.github.com>
+Date:   2026-11-04 21:47:39 +0000
+
+    fix(dispatcher): bound retries for throwing providers and protect cancelled messages (B6, B7)
+
+An exception from a provider adapter left the message in the queue forever and
+aborted the rest of the batch. Retry with backoff, then dead-letter at the max
+attempts. A cancelled message may now only move to submitted/unknown.
+
+----------------------------------------------------------------------
+
+ apps/api/src/messaging/dispatcher.service.ts | 39 +++++++++++++++++++++++++---
+ 1 file changed, 36 insertions(+), 3 deletions(-)
+commit 7134123cd860f0adb2b74d7cd8d8a0cb0c0046a9
+Author: Paarth <Paarth01@users.noreply.github.com>
+Date:   2026-11-04 21:47:32 +0000
+
+    fix(messaging): serialise spend-cap checks per workspace (S8)
+
+Two campaigns scheduled concurrently could both pass the cap check. Take a
+per-workspace advisory lock around it.
+
+----------------------------------------------------------------------
+
+ apps/api/src/messaging/campaigns.service.ts | 3 +++
+ 1 file changed, 3 insertions(+)
+commit db545a54740f27d9d46e6780f548909f511ac189
+Author: Paarth <Paarth01@users.noreply.github.com>
+Date:   2026-11-04 21:47:23 +0000
+
+    fix(db): make the connection pool resilient (B8)
+
+Handle idle-client errors (an unhandled pool 'error' event crashes Node), add
+connection/idle/idle-in-transaction timeouts, and destroy connections whose
+ROLLBACK fails instead of reusing them.
+
+----------------------------------------------------------------------
+
+ apps/api/src/common/db.service.ts | 26 +++++++++++++++++++++++---
+ 1 file changed, 23 insertions(+), 3 deletions(-)
+commit 50c332fafd199df7fd0c5fcf898eeefc26c6abcd
+Author: Paarth <Paarth01@users.noreply.github.com>
+Date:   2026-11-04 21:47:16 +0000
+
+    fix(csv): let exported CSVs be imported again (B3)
+
+Export prefixes cells starting with = + - @ with a quote (formula-injection
+guard), which turned +91 phone numbers into values the importer rejected.
+Import now removes that guard.
+
+----------------------------------------------------------------------
+
+ apps/api/src/common/csv.ts    | 8 ++++++++
+ apps/api/src/guests/import.ts | 3 ++-
+ 2 files changed, 10 insertions(+), 1 deletion(-)
+commit bf4e56fc33d5f4beb025438f1af7ba4530e53feb
+Author: Paarth <Paarth01@users.noreply.github.com>
+Date:   2026-11-04 21:47:08 +0000
+
+    fix(events): reject impossible calendar dates such as 2026-02-31 (B1)
+
+The date schema only checked the YYYY-MM-DD shape, so invalid dates reached
+PostgreSQL and returned a 500. Validate real calendar dates.
+
+----------------------------------------------------------------------
+
+ apps/api/src/events/events.service.ts | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)
+commit eceed60be6bc39eb7d048cc646665441aa636052
+Author: Paarth <Paarth01@users.noreply.github.com>
+Date:   2026-11-04 21:46:46 +0000
+
+    fix(authz): require event-wide assignment on event-level guest routes (S2)
+
+Function-scoped team members could list, unmask, edit and record consent for
+guests of functions they were not assigned to. Add ScopeService.eventWide()
+and use it for every event-level guest route.
+
+Also make guest-group creation race-safe (B2): INSERT .. ON CONFLICT DO NOTHING
+then re-read, instead of failing with a 500 when concurrent requests create the
+same new label.
+
+----------------------------------------------------------------------
+
+ apps/api/src/common/scope.service.ts  | 17 ++++++++++++++
+ apps/api/src/guests/guests.service.ts | 43 ++++++++++++++++++++---------------
+ 2 files changed, 42 insertions(+), 18 deletions(-)
+commit b946bd528e1e1b26fe9e0bd37cd6d9f16e30f291
+Author: Paarth <Paarth01@users.noreply.github.com>
+Date:   2026-11-04 21:46:34 +0000
+
+    Initial import of ShaadiCount MVP (before the production audit)
+
+NestJS API + worker, Next.js web app, PostgreSQL migrations 0001-0004,
+unit/integration/e2e tests, Docker and CI configuration.
+
+----------------------------------------------------------------------
+
+ .dockerignore                                      |    10 +
+ .env.example                                       |    34 +
+ .github/workflows/ci.yml                           |    71 +
+ .gitignore                                         |    14 +
+ .nvmrc                                             |     1 +
+ .prettierignore                                    |    11 +
+ .prettierrc.json                                   |     1 +
+ Dockerfile.api                                     |    29 +
+ Dockerfile.web                                     |    24 +
+ PROGRESS.md                                        |    58 +
+ README.md                                          |    89 +
+ api/openapi.yaml                                   |  4741 ++++++
+ apps/api/eslint.config.mjs                         |    21 +
+ apps/api/jest.config.js                            |    32 +
+ apps/api/package.json                              |    59 +
+ apps/api/src/app.module.ts                         |    78 +
+ apps/api/src/app.setup.ts                          |    41 +
+ apps/api/src/audit/audit.service.ts                |   103 +
+ apps/api/src/auth/access.guard.ts                  |    85 +
+ apps/api/src/auth/auth.controller.ts               |    69 +
+ apps/api/src/auth/auth.service.ts                  |   121 +
+ apps/api/src/auth/permissions.ts                   |   115 +
+ apps/api/src/auth/session.service.ts               |    55 +
+ apps/api/src/checkin/checkin.controller.ts         |    58 +
+ apps/api/src/checkin/checkin.service.ts            |   201 +
+ apps/api/src/common/common.module.ts               |    39 +
+ apps/api/src/common/crypto.ts                      |    35 +
+ apps/api/src/common/csv.ts                         |    12 +
+ apps/api/src/common/db.service.ts                  |    61 +
+ apps/api/src/common/errors.ts                      |    29 +
+ apps/api/src/common/filters.ts                     |    84 +
+ apps/api/src/common/helpers.spec.ts                |   100 +
+ apps/api/src/common/idempotency.service.ts         |    82 +
+ apps/api/src/common/logger.ts                      |    66 +
+ apps/api/src/common/outbox.service.ts              |    15 +
+ apps/api/src/common/phone.ts                       |    24 +
+ apps/api/src/common/rate-limit.service.ts          |    43 +
+ apps/api/src/common/request.ts                     |    24 +
+ apps/api/src/common/routes.ts                      |    31 +
+ apps/api/src/common/scope.service.ts               |   103 +
+ apps/api/src/common/time.ts                        |    35 +
+ apps/api/src/common/zod.pipe.ts                    |    29 +
+ apps/api/src/config/config.ts                      |   113 +
+ apps/api/src/db/env-file.ts                        |    12 +
+ apps/api/src/db/migrate-cli.ts                     |    15 +
+ apps/api/src/db/migrate.ts                         |    50 +
+ apps/api/src/db/reset-cli.ts                       |    18 +
+ apps/api/src/db/seed.ts                            |   207 +
+ apps/api/src/docs.ts                               |    18 +
+ apps/api/src/domain.spec.ts                        |   163 +
+ apps/api/src/events/events.controller.ts           |    56 +
+ apps/api/src/events/events.service.ts              |   268 +
+ apps/api/src/guests/guests.controller.ts           |   135 +
+ apps/api/src/guests/guests.service.ts              |   605 +
+ apps/api/src/guests/import.ts                      |   158 +
+ apps/api/src/guests/suppression.service.ts         |   153 +
+ apps/api/src/health/health.controller.ts           |    21 +
+ apps/api/src/invitations/invitations.controller.ts |   120 +
+ apps/api/src/invitations/invitations.service.ts    |   274 +
+ apps/api/src/invitations/tokens.service.ts         |    39 +
+ apps/api/src/main.ts                               |    25 +
+ apps/api/src/messaging/campaigns.service.ts        |   470 +
+ apps/api/src/messaging/dispatcher.service.ts       |   282 +
+ apps/api/src/messaging/eligibility.service.ts      |   129 +
+ apps/api/src/messaging/messaging.controller.ts     |   164 +
+ apps/api/src/messaging/outbox-relay.service.ts     |    70 +
+ apps/api/src/messaging/provider.ts                 |    96 +
+ apps/api/src/messaging/templates.ts                |    65 +
+ apps/api/src/messaging/webhooks.service.ts         |   172 +
+ apps/api/src/privacy/privacy.controller.ts         |    21 +
+ apps/api/src/privacy/privacy.service.ts            |   250 +
+ apps/api/src/reporting/catering.spec.ts            |    50 +
+ apps/api/src/reporting/catering.ts                 |    70 +
+ apps/api/src/reporting/reporting.controller.ts     |    82 +
+ apps/api/src/reporting/reporting.service.ts        |   447 +
+ apps/api/src/rsvp/rsvp.controller.ts               |    38 +
+ apps/api/src/rsvp/rsvp.service.ts                  |   284 +
+ apps/api/src/worker.ts                             |    51 +
+ apps/api/src/workspaces/workspaces.controller.ts   |    96 +
+ apps/api/src/workspaces/workspaces.service.ts      |   240 +
+ apps/api/test/compliance.int.spec.ts               |   263 +
+ apps/api/test/core.int.spec.ts                     |   387 +
+ apps/api/test/env.setup.ts                         |    17 +
+ apps/api/test/fixtures.ts                          |    67 +
+ apps/api/test/foundation.int.spec.ts               |    44 +
+ apps/api/test/global-setup.ts                      |    12 +
+ apps/api/test/helpers.ts                           |    76 +
+ apps/api/test/journey.e2e.spec.ts                  |   235 +
+ apps/api/test/messaging.int.spec.ts                |   445 +
+ apps/api/test/openapi.int.spec.ts                  |    68 +
+ apps/api/test/ops.int.spec.ts                      |   385 +
+ apps/api/tsconfig.build.json                       |     6 +
+ apps/api/tsconfig.json                             |    27 +
+ apps/web/app/globals.css                           |   735 +
+ apps/web/app/layout.tsx                            |    24 +
+ apps/web/app/login/page.tsx                        |    48 +
+ apps/web/app/new/page.tsx                          |    36 +
+ apps/web/app/page.tsx                              |    53 +
+ apps/web/app/r/page.tsx                            |    32 +
+ apps/web/app/register/page.tsx                     |    82 +
+ .../functions/[functionId]/checkin/page.tsx        |   342 +
+ .../[eventId]/functions/[functionId]/page.tsx      |    95 +
+ .../[workspaceId]/events/[eventId]/guests/page.tsx |   292 +
+ .../app/w/[workspaceId]/events/[eventId]/page.tsx  |   146 +
+ apps/web/app/w/[workspaceId]/events/page.tsx       |   159 +
+ apps/web/app/w/[workspaceId]/layout.tsx            |     8 +
+ apps/web/app/w/[workspaceId]/page.tsx              |    69 +
+ apps/web/app/w/[workspaceId]/settings/page.tsx     |   463 +
+ apps/web/app/w/[workspaceId]/team/page.tsx         |   283 +
+ apps/web/components/FunctionModal.tsx              |   114 +
+ apps/web/components/GuestRsvp.tsx                  |   359 +
+ apps/web/components/GuestTools.tsx                 |   552 +
+ apps/web/components/Providers.tsx                  |    11 +
+ apps/web/components/QrScanner.tsx                  |    89 +
+ apps/web/components/Shell.tsx                      |   138 +
+ apps/web/components/StatusBadges.tsx               |    57 +
+ apps/web/components/function/Catering.tsx          |   209 +
+ apps/web/components/function/CheckInSummary.tsx    |    38 +
+ apps/web/components/function/Invitations.tsx       |   516 +
+ apps/web/components/function/Messages.tsx          |   603 +
+ apps/web/components/function/Overview.tsx          |   115 +
+ apps/web/components/icons.tsx                      |    78 +
+ apps/web/components/ui.tsx                         |   363 +
+ apps/web/eslint.config.mjs                         |    16 +
+ apps/web/lib/api.ts                                |    72 +
+ apps/web/lib/auth.tsx                              |    99 +
+ apps/web/lib/format.ts                             |    43 +
+ apps/web/lib/i18n.ts                               |    91 +
+ apps/web/next-env.d.ts                             |     6 +
+ apps/web/next.config.mjs                           |    54 +
+ apps/web/package.json                              |    35 +
+ apps/web/public/.gitkeep                           |     0
+ apps/web/scripts/smoke.mjs                         |   155 +
+ apps/web/test/guest-rsvp.test.tsx                  |   186 +
+ apps/web/test/lib.test.ts                          |    82 +
+ apps/web/test/setup.ts                             |     7 +
+ apps/web/test/ui.test.tsx                          |    82 +
+ apps/web/tsconfig.json                             |    21 +
+ apps/web/vitest.config.mts                         |     8 +
+ db/migrations/0001_identity_tenancy_events.sql     |   115 +
+ db/migrations/0002_guests_invitations_rsvp.sql     |   114 +
+ db/migrations/0003_messaging.sql                   |   182 +
+ .../0004_checkin_catering_privacy_audit.sql        |   141 +
+ docker-compose.yml                                 |    54 +
+ docs/api/API_GUIDE.md                              |    16 +
+ docs/api/authentication-and-authorization.md       |    48 +
+ docs/architecture/ADRs/ADR-001-modular-monolith.md |    12 +
+ docs/architecture/ADRs/ADR-002-client-stack.md     |     9 +
+ .../architecture/ADRs/ADR-003-postgres-and-jobs.md |    12 +
+ .../ADRs/ADR-004-derived-invitation-tokens.md      |     7 +
+ ...ADR-005-workspace-scoped-api-and-concealment.md |     6 +
+ .../architecture/ADRs/ADR-006-session-auth-csrf.md |     6 +
+ .../ADRs/ADR-007-postgres-worker-no-redis-mvp.md   |     6 +
+ docs/architecture/architecture-diagrams.md         |   115 +
+ docs/architecture/scalability-and-reliability.md   |    22 +
+ docs/architecture/system-overview.md               |    43 +
+ docs/database/ERD.md                               |    31 +
+ docs/database/migration-plan.md                    |    35 +
+ docs/database/schema-reference.md                  |    17 +
+ docs/devops/deployment.md                          |    36 +
+ docs/devops/local-development.md                   |    60 +
+ docs/messaging/provider-adapter-contract.md        |    30 +
+ docs/messaging/provider-integration.md             |    42 +
+ docs/messaging/templates-and-policies.md           |    23 +
+ docs/privacy/data-inventory-and-retention.md       |    16 +
+ docs/privacy/india-compliance-review.md            |    37 +
+ docs/product/PRD.md                                |   104 +
+ docs/product/acceptance-criteria.md                |    29 +
+ docs/product/personas-and-user-stories.md          |    36 +
+ docs/project/agent-handoff-checklist.md            |    14 +
+ docs/project/architecture-quality-gates.md         |    23 +
+ docs/project/decisions-baseline.md                 |    26 +
+ docs/project/definition-of-done.md                 |    14 +
+ docs/project/implementation-backlog.md             |    48 +
+ docs/project/implementation-contract.md            |    53 +
+ docs/project/implementation-roadmap.md             |    51 +
+ docs/project/open-questions.md                     |    43 +
+ docs/project/release-readiness-checklist.md        |    43 +
+ docs/project/risk-register.md                      |    37 +
+ docs/project/spec-audit.md                         |    24 +
+ docs/project/traceability.md                       |    55 +
+ docs/security/known-limitations.md                 |    22 +
+ docs/security/role-matrix.md                       |    26 +
+ docs/security/tenant-isolation-checklist.md        |    40 +
+ docs/security/threat-model.md                      |    23 +
+ docs/spec-package/CODING_AGENT_INSTRUCTIONS.md     |    72 +
+ docs/spec-package/README.md                        |    47 +
+ docs/spec-package/starter-001_initial_schema.sql   |   224 +
+ docs/spec-package/starter-openapi.yaml             |   125 +
+ docs/spec-package/system-context.mmd               |    11 +
+ docs/testing/acceptance-test-matrix.md             |    40 +
+ docs/testing/test-strategy.md                      |    29 +
+ docs/ux/information-architecture.md                |    31 +
+ docs/ux/screen-specifications.md                   |    29 +
+ package-lock.json                                  | 14509 +++++++++++++++++++
+ package.json                                       |    44 +
+ scripts/check-secrets.sh                           |    23 +
+ scripts/gen-env.sh                                 |    11 +
+ scripts/gen-openapi.mjs                            |   597 +
+ 199 files changed, 39296 insertions(+)
