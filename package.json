@@ -32,7 +32,7 @@
     "test:smoke": "npm run test:smoke -w @shaadicount/web"
   },
   "devDependencies": {
-    "concurrently": "^9.2.0",
+    "concurrently": "^10.0.6",
     "prettier": "^3.6.2"
   },
   "overrides": {
