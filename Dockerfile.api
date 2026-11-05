@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # API + worker image (same image, different command). Built from the repo root:  docker build -f Dockerfile.api -t shaadicount-api .
-FROM node:22-slim AS build
+FROM node:25-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/
@@ -9,7 +9,7 @@ RUN npm ci --workspace @shaadicount/api --include-workspace-root
 COPY apps/api apps/api
 RUN npm run build -w @shaadicount/api
 
-FROM node:22-slim AS run
+FROM node:25-slim AS run
 ENV NODE_ENV=production
 WORKDIR /app
 COPY package.json package-lock.json ./
