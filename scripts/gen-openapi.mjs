@@ -461,7 +461,13 @@ const ops = [
     `${F}/checkin`,
     'Check-in',
     'Check in by QR code or invitation id; duplicates return 200 {duplicate:true}',
-    { body: 'CheckIn', perm: 'checkin:write', idem: 'optional', status: 201 },
+    {
+      body: 'CheckIn',
+      perm: 'checkin:write',
+      idem: 'optional',
+      status: 201,
+      note: 'Responses include guestName and partySize. A 409 RSVP_NOT_CONFIRMED error carries invitationId, guestName and partySize so staff can confirm manually after a QR scan.',
+    },
   ],
   [
     'post',
@@ -559,7 +565,7 @@ for (const [method, path, tag, summary, o = {}] of ops) {
     parameters: params.length ? params : undefined,
     responses,
   };
-  if (o.perm) op.description = `Required permission: \`${o.perm}\`.`;
+  if (o.perm) op.description = `Required permission: \`${o.perm}\`.${o.note ? ` ${o.note}` : ''}`;
   if (o.body) op.requestBody = { required: true, content: { 'application/json': { schema: ref(o.body) } } };
   if (o.public) op.security = [];
   (paths[path] ??= {})[method] = op;

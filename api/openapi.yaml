@@ -3417,7 +3417,6 @@ paths:
       tags:
         - Check-in
       summary: Check in by QR code or invitation id; duplicates return 200 {duplicate:true}
-      description: "Responses include guestName and partySize. A 409 RSVP_NOT_CONFIRMED error carries invitationId, guestName and partySize so staff can confirm manually after a QR scan. Required permission: `checkin:write`."
       operationId: post_v1_workspaces_workspaceId_events_eventId_functions_functionId_checkin
       parameters:
         - name: workspaceId
@@ -3468,6 +3467,7 @@ paths:
           $ref: "#/components/responses/E422"
         "429":
           $ref: "#/components/responses/E429"
+      description: "Required permission: `checkin:write`. Responses include guestName and partySize. A 409 RSVP_NOT_CONFIRMED error carries invitationId, guestName and partySize so staff can confirm manually after a QR scan."
       requestBody:
         required: true
         content:
